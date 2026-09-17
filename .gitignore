@@ -1,0 +1,42 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_directory/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Env / secrets — never commit
+.env
+.env.*
+!.env.example
+**/secrets.dart
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+node_modules/
+tmp_*

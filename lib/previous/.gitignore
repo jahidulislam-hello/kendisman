@@ -1,0 +1,36 @@
+# dependencies (npm workspaces hoist most of this to the root)
+node_modules/
+
+# env files (Supabase keys, etc. — never commit real secrets)
+.env
+.env.local
+.env*.local
+
+# Supabase CLI local state
+../supabase/.branches/
+../supabase/.temp/
+
+# Claude Code local machine state (tool-permission approvals, etc.)
+# .claude/launch.json is intentionally NOT ignored -- it's shared dev-server config.
+.claude/settings.local.json
+
+# build output
+dist/
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+
+# Apple private keys (App Store Connect / APNs / subscription). Real secrets --
+# these live in the working tree but must never be committed.
+*.p8
+
+# Sibling repo checked out inside this one; it has its own git history.
+ironcoach-legal/
+
+# Sleek (sleek.design) skill install + generated project artifacts -- local tooling,
+# not part of the app source.
+.agents/
+.claude/skills/sleek-design-mobile-apps/
+skills-lock.json
+sleek-fitzella/

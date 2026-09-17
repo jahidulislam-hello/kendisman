@@ -1,0 +1,7 @@
+node_modules/
+# Generated captures -- regenerate with `node capture.js` rather than
+# committing multi-megabyte binaries.
+*.png
+
+# one-off local verification scripts
+verify-*.js

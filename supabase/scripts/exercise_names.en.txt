@@ -1,0 +1,525 @@
+3/4 Sit-Up
+Air Bike
+Barbell Back Squat
+Barbell Behind Back Finger Curl
+Barbell Bench Front Squat
+Barbell Bench Press
+Barbell Bench Squat
+Barbell Bent Arm Pullover
+Barbell Close Grip Bench Press
+Barbell Curl
+Barbell Deadlift
+Barbell Decline Bench Press
+Barbell Decline Bent Arm Pullover
+Barbell Decline Close Grip To Skull Press
+Barbell Decline Pullover
+Barbell Decline Wide Grip Press
+Barbell Decline Wide Grip Pullover
+Barbell Drag Curl
+Barbell Floor Calf Raise
+Barbell Front Chest Squat
+Barbell Front Raise
+Barbell Front Raise And Pullover
+Barbell Front Squat
+Barbell Full Squat
+Barbell Full Zercher Squat
+Barbell Good Morning
+Barbell High Bar Squat
+Barbell Hip Thrust
+Barbell Incline Bench Press
+Barbell Incline Close Grip Bench Press
+Barbell Incline Reverse Grip Press
+Barbell Incline Row
+Barbell Incline Wide Reverse Grip Bench Press
+Barbell Low Bar Squat
+Barbell Low Bar Squat With Rack
+Barbell Lunge
+Barbell Lying Back Of The Head Tricep Extension
+Barbell Lying Close Grip Press
+Barbell Lying Close Grip Triceps Extension
+Barbell Lying Extension
+Barbell Lying Lifting (On Hip)
+Barbell Olympic Squat
+Barbell One Leg Squat
+Barbell Preacher Curl
+Barbell Quarter Squat
+Barbell Rear Delt Row
+Barbell Rear Lunge
+Barbell Reverse Close Grip Bench Press
+Barbell Reverse Curl
+Barbell Reverse Grip Bent Over Row
+Barbell Reverse Grip Decline Bench Press
+Barbell Reverse Grip Incline Bench Press
+Barbell Reverse Grip Incline Bench Row
+Barbell Reverse Grip Skullcrusher
+Barbell Reverse Preacher Curl
+Barbell Reverse Wrist Curl
+Barbell Romanian Deadlift
+Barbell Row
+Barbell Seated Behind Head Military Press
+Barbell Seated Calf Raise
+Barbell Seated Close Grip Behind Neck Triceps Extension
+Barbell Seated Close Grip Concentration Curl
+Barbell Seated Good Morning
+Barbell Seated Military Press (Inside Squat Cage)
+Barbell Seated Overhead Triceps Extension
+Barbell Seated Twist
+Barbell Shrug
+Barbell Side Bent II
+Barbell Side Split Squat II
+Barbell Standing Close Grip Military Press
+Barbell Standing Concentration Curl
+Barbell Standing Leg Calf Raise
+Barbell Standing Military Press
+Barbell Standing Overhead Triceps Extension
+Barbell Standing Reverse Grip Curl
+Barbell Standing Twist
+Barbell Standing Wide Grip Biceps Curl
+Barbell Standing Wide Grip Curl
+Barbell Standing Wide Military Press
+Barbell Step-Up
+Barbell Stiff Leg Good Morning
+Barbell Straight Leg Deadlift
+Barbell Sumo Deadlift
+Barbell Upright Row
+Barbell Wide Reverse Grip Bench Press
+Barbell Wrist Curl
+Barbell Wrist Curl (VERSION 2)
+Barbell Wrist Reverse Curl (VERSION 2)
+Bench Dip (Knees Bent)
+Bodyweight Squat
+Bodyweight Standing Calf Raise
+Butt Ups
+Cable Alternate Triceps Extension
+Cable Bar Lateral Pulldown
+Cable Bench Press
+Cable Biceps Curl (SZ Bar)
+Cable Close Grip Curl
+Cable Close Grip Front Lat Pulldown
+Cable Concentration Curl
+Cable Concentration Extension (On Knee)
+Cable Cross Over Lateral Pulldown
+Cable Cross Over Reverse Fly
+Cable Crossover Variation
+Cable Curl (Male)
+Cable Curl With Multipurpose V Bar
+Cable Decline Fly
+Cable Decline Press
+Cable Drag Curl
+Cable Elevated Row
+Cable Front Raise
+Cable Front Shoulder Raise
+Cable Hammer Curl (With Rope Attachment) (Male)
+Cable High Pulley Overhead Tricep Extension
+Cable Hip Adduction
+Cable Horizontal Pallof Press
+Cable Incline Bench Press
+Cable Incline Fly
+Cable Incline Pushdown
+Cable Incline Triceps Extension
+Cable Kickback
+Cable Kneeling Crunch
+Cable Kneeling Triceps Extension
+Cable Kneeling Triceps Extension (VERSION 2)
+Cable Lateral Raise
+Cable Low Fly
+Cable Low Seated Row
+Cable Lying Close Grip Curl
+Cable Lying Extension Pullover (With Rope Attachment)
+Cable Lying Fly
+Cable Lying Triceps Extension
+Cable Middle Fly
+Cable One Arm Curl
+Cable One Arm Inner Biceps Curl
+Cable One Arm Lateral Raise
+Cable One Arm Side Triceps Pushdown
+Cable Overhead Curl
+Cable Overhead Triceps Extension (Rope Attachment)
+Cable Preacher Curl
+Cable Pull Through
+Cable Pulldown
+Cable Pushdown (Straight Arm) II
+Cable Rear Pulldown
+Cable Reverse Crunch
+Cable Reverse Grip Straight Back Seated High Row
+Cable Reverse Grip Triceps Pushdown (SZ Bar)
+Cable Reverse Preacher Curl
+Cable Reverse Wrist Curl
+Cable Rope Elevated Seated Row
+Cable Rope Incline Tricep Extension
+Cable Rope Seated Row
+Cable Seated Chest Press
+Cable Seated Crunch
+Cable Seated Curl
+Cable Seated High Row (V Bar)
+Cable Seated Rear Lateral Raise
+Cable Seated Row
+Cable Seated Row (Bent Bar)
+Cable Seated Shoulder Internal Rotation
+Cable Seated Twist
+Cable Seated Wide Grip Row
+Cable Shoulder Press
+Cable Shrug
+Cable Side Bend
+Cable Standing Calf Raise
+Cable Standing Cross Over High Reverse Fly
+Cable Standing Crunch (With Rope Attachment)
+Cable Standing Fly
+Cable Standing Hip Extension
+Cable Standing Inner Curl
+Cable Standing Leg Curl
+Cable Standing Reverse Curl (SZ Bar)
+Cable Standing Shoulder External Rotation
+Cable Standing Up Straight Crossovers
+Cable Straight Arm Pulldown
+Cable Straight Back Seated Row
+Cable Supine Reverse Fly
+Cable Triceps Pushdown (SZ Bar)
+Cable Triceps Pushdown (V Bar Attachment)
+Cable Tuck Reverse Crunch
+Cable Twist
+Cable Two Arm Tricep Kickback
+Cable Underhand Pulldown
+Cable Upper Chest Crossovers
+Cable Upper Row
+Cable Upright Row
+Cable Vertical Pallof Press
+Cable Wide Grip Behind Neck Pulldown
+Cable Wide Pulldown
+Cable Wrist Curl
+Chest Dip
+Chin-Up
+Chin-Ups (Narrow Parallel Grip)
+Close Grip Chin-Up
+Close Grip Push-Up
+Cocoons
+Conventional Deadlift
+Cross Body Crunch
+Crunch (On Stability Ball)
+Crunch Floor
+Decline Push-Up
+Dumbbell Alternate Biceps Curl
+Dumbbell Arnold Press
+Dumbbell Arnold Press II
+Dumbbell Bench Press
+Dumbbell Bench Seated Press
+Dumbbell Bench Squat
+Dumbbell Bent Over Row
+Dumbbell Bent Over Row_back
+Dumbbell Bicep Curl
+Dumbbell Biceps Curl
+Dumbbell Biceps Curl Reverse
+Dumbbell Close Grip Press
+Dumbbell Concentration Curl
+Dumbbell Cross Body Hammer Curl
+Dumbbell Cross Body Hammer Curl (Version 2)
+Dumbbell Deadlift
+Dumbbell Decline Bench Press
+Dumbbell Decline Fly
+Dumbbell Decline Hammer Press
+Dumbbell Decline Shrug
+Dumbbell Decline Triceps Extension
+Dumbbell Finger Curls
+Dumbbell Fly
+Dumbbell Front Raise
+Dumbbell Goblet Squat
+Dumbbell Hammer Curl
+Dumbbell Hammer Curl II
+Dumbbell High Curl
+Dumbbell Incline Fly
+Dumbbell Incline Front Raise
+Dumbbell Incline Inner Biceps Curl
+Dumbbell Incline Raise
+Dumbbell Incline Rear Lateral Raise
+Dumbbell Incline Reverse Grip 30° Bench Press
+Dumbbell Incline Row
+Dumbbell Incline Shrug
+Dumbbell Incline Triceps Extension
+Dumbbell Kickback
+Dumbbell Lunge
+Dumbbell Lying Elbow Press
+Dumbbell Lying Femoral
+Dumbbell Lying Hammer Press
+Dumbbell Lying Hammer Press (Version 2)
+Dumbbell Lying Rear Delt Row
+Dumbbell Lying Single Extension
+Dumbbell Lying Triceps Extension
+Dumbbell One Arm Kickback
+Dumbbell One Arm Reverse Wrist Curl
+Dumbbell One Arm Row (Rack Support)
+Dumbbell One Arm Seated Neutral Wrist Curl
+Dumbbell One Arm Wrist Curl
+Dumbbell Over Bench Neutral Wrist Curl
+Dumbbell Over Bench One Arm Neutral Wrist Curl
+Dumbbell Over Bench One Arm Reverse Wrist Curl
+Dumbbell Over Bench One Arm Wrist Curl
+Dumbbell Over Bench Reverse Wrist Curl
+Dumbbell Over Bench Wrist Curl
+Dumbbell Palm Rotational Bent Over Row
+Dumbbell Palms In Incline Bench Press
+Dumbbell Peacher Hammer Curl
+Dumbbell Pullover
+Dumbbell Rear Delt Raise
+Dumbbell Rear Delt Row
+Dumbbell Rear Fly
+Dumbbell Rear Lateral Raise
+Dumbbell Rear Lunge
+Dumbbell Reverse Bench Press
+Dumbbell Reverse Grip Biceps Curl
+Dumbbell Reverse Grip Incline Bench Two Arm Row
+Dumbbell Reverse Preacher Curl
+Dumbbell Reverse Wrist Curl
+Dumbbell Romanian Deadlift
+Dumbbell Seated Bench Extension
+Dumbbell Seated Bent Arm Lateral Raise
+Dumbbell Seated Bicep Curl
+Dumbbell Seated Front Raise
+Dumbbell Seated Hammer Curl
+Dumbbell Seated Kickback
+Dumbbell Seated Lateral Raise
+Dumbbell Seated Neutral Wrist Curl
+Dumbbell Seated Palms Up Wrist Curl
+Dumbbell Seated Preacher Curl
+Dumbbell Seated Reverse Grip Concentration Curl
+Dumbbell Seated Shoulder Press
+Dumbbell Seated Triceps Extension
+Dumbbell Shrug
+Dumbbell Side Bend
+Dumbbell Single Leg Split Squat
+Dumbbell Squat
+Dumbbell Standing Alternate Raise
+Dumbbell Standing Bent Over Two Arm Triceps Extension
+Dumbbell Standing Biceps Curl
+Dumbbell Standing Calf Raise
+Dumbbell Standing Concentration Curl
+Dumbbell Standing Inner Biceps Curl
+Dumbbell Standing Inner Biceps Curl (Version 2)
+Dumbbell Standing Kickback
+Dumbbell Standing One Arm Concentration Curl
+Dumbbell Standing One Arm Extension
+Dumbbell Standing Triceps Extension
+Dumbbell Step-Up
+Dumbbell Stiff Leg Deadlift
+Dumbbell Straight Arm Pullover
+Dumbbell Upright Row (Back POV)
+Dumbbell Upright Row (Front POV)
+Dumbbell Upright Shoulder External Rotation
+Dumbbell Zottman Curl
+Dumbbells Seated Triceps Extension
+Elbow To Knee
+Extra Decline Sit-Up
+EZ Bar Reverse Grip Bent Over Row
+EZ Bar Seated Close Grip Concentration Curl
+EZ Barbell Close Grip Curl
+EZ Barbell Close Grip Preacher Curl
+EZ Barbell Curl
+EZ Barbell Decline Triceps Extension
+EZ Barbell Incline Triceps Extension
+EZ Barbell Reverse Grip Curl
+EZ Barbell Reverse Grip Preacher Curl
+EZ Barbell Seated Curls
+EZ Barbell Seated Triceps Extension
+Finger Curls
+Flutter Kicks
+Flutter Kicks (Version 2)
+Flutter Kicks (Version 3)
+Front Plank
+Hack Calf Raise
+Half Wipers (Bent Leg)
+Hammer Grip Pull-Up On Dip Cage
+Hanging Leg Hip Raise
+Hanging Oblique Knee Raise
+Hanging Straight Leg Hip Raise
+Hanging Straight Twisting Leg Hip Raise
+Hip Raise (Bent Knee)
+Hip Thrusts
+Hyperextension
+Hyperextension (On Bench)
+Hyperextension (VERSION 2)
+Incline Leg Hip Raise (Leg Straight)
+Incline Reverse Grip Push-Up
+Incline Twisting Sit-Up (Version 2)
+Incline Twisting Situp
+Inverse Leg Curl (On Pull-Up Cable Machine)
+Inverted Row
+Inverted Row Bent Knees
+Jackknife Sit-Up
+Leg Press
+Lever Alternate Biceps Curl
+Lever Alternate Leg Extension (Plate Loaded)
+Lever Bicep Curl
+Lever Calf Press (Plate Loaded)
+Lever Calf Raise (Bench Press Machine)
+Lever Chair Squat
+Lever Chest Press
+Lever Chest Press (Plate Loaded)
+Lever Chest Press (VERSION 2)
+Lever Chest Press (VERSION 4)
+Lever Deadlift (Plate Loaded)
+Lever Decline Chest Press
+Lever Decline Chest Press (VERSION 2)
+Lever Donkey Calf Raise
+Lever Front Pulldown
+Lever Full Squat
+Lever Gripless Shrug
+Lever Gripless Shrug (VERSION 2)
+Lever Gripper Hands (Plate Loaded)
+Lever Hammer Grip Preacher Curl
+Lever High Row (Plate Loaded)
+Lever Hip Extension (VERSION 2)
+Lever Incline Chest Press
+Lever Incline Hammer Chest Press
+Lever Kneeling Leg Curl (Plate Loaded)
+Lever Lateral Pulldown (Plate Loaded)
+Lever Lateral Raise
+Lever Lateral Raise (Plate Loaded)
+Lever Leg Extension
+Lever Leg Extension (Plate Loaded)
+Lever Lying Chest Press (Plate Loaded)
+Lever Lying Crunch
+Lever Lying Leg Curl
+Lever Lying T-Bar Row
+Lever Military Press (Plate Loaded)
+Lever Neutral Grip Seated Row (Plate Loaded)
+Lever Overhand Triceps Dip
+Lever Parallel Chest Press
+Lever Pec Deck Fly
+Lever Pistol Squat
+Lever Preacher Curl
+Lever Preacher Curl (Plate Loaded)
+Lever Preacher Curl (Version 2)
+Lever Pullover (Plate Loaded)
+Lever Reverse Grip Preacher Curl
+Lever Reverse Grip Vertical Row
+Lever Reverse T-Bar Row
+Lever Rotary Calf
+Lever Row (Plate Loaded)
+Lever Seated Calf Press
+Lever Seated Calf Raise (Plate Loaded)
+Lever Seated Crunch
+Lever Seated Crunch (Chest Pad)
+Lever Seated Dip
+Lever Seated Fly
+Lever Seated Hip Abduction
+Lever Seated Hip Abduction (VERSION 2)
+Lever Seated Hip Adduction
+Lever Seated Hip Adduction (VERSION 2)
+Lever Seated Leg Curl
+Lever Seated Leg Press
+Lever Seated One Leg Calf Raise
+Lever Seated Reverse Fly
+Lever Seated Row
+Lever Seated Shoulder Press
+Lever Seated Squat
+Lever Seated Twist
+Lever Seated Wide Squat
+Lever Shoulder Press (Plate Loaded) II
+Lever Shoulder Press (Plate Loaded) Version 3
+Lever Shrug (Bench Press Machine)
+Lever Shrug (Plate Loaded)
+Lever Side Hip Abduction
+Lever Side Hip Adduction
+Lever Single Arm Neutral Grip Seated Row (Plate Loaded)
+Lever Squat (Plate Loaded)
+Lever Standing Calf Raise
+Lever Standing Hip Extension
+Lever Standing Leg Raise
+Lever Standing Rear Kick
+Lever T-Bar Reverse Grip Row
+Lever T-Bar Row (Plate Loaded)
+Lever Triceps Dip (Plate Loaded)
+Lever Triceps Extension
+Lever Unilateral Row
+Leverage Incline Chest Press
+Lying Leg Raise
+Lying Leg Raise And Hold
+Lying Leg Raise Flat Bench
+Machine Inner Chest Press
+Overhead Press
+Pike Push-Up
+Pull In (On Stability Ball)
+Pull-Up
+Pull-Up (Neutral Grip)
+Push-Up
+Push-Up On Forearms
+Rear Decline Bridge
+Rear Pull-Up
+Reverse Crunch
+Reverse Dip
+Reverse Grip Machine Lat Pulldown
+Reverse Hyper On Flat Bench
+Russian Twist (With Medicine Ball)
+Seated Leg Raise
+Shoulder Grip Pull-Up
+Side Plank (Male)
+Single Leg Squat With Support (Pistol)
+Sit Squat
+Sit-Up II
+Sled 45° Calf Press
+Sled 45° Leg Press
+Sled 45° Leg Wide Press
+Sled 45° Narrow Stance Leg Press
+Sled Calf Press On Leg Press
+Sled Forward Angled Calf Raise
+Sled Full Hack Squat
+Sled Hack Squat
+Sled Lying Squat
+Sled Reverse Hack Squat
+Smith Behind Neck Press
+Smith Bench Press
+Smith Bent Over Narrow Supinated Grip Row
+Smith Bent Over Pronated Grip Row
+Smith Calf Raise (Version 2)
+Smith Chair Squat
+Smith Close Grip Bench Press
+Smith Deadlift
+Smith Decline Bench Press
+Smith Decline Reverse Grip Press
+Smith Frankenstein Squat
+Smith Front Squat
+Smith Front Squat (Clean Grip)
+Smith Incline Bench Press
+Smith Incline Reverse Grip Press
+Smith Leg Press
+Smith Low Bar Squat
+Smith Machine Bicep Curl
+Smith Machine Decline Close Grip Bench Press
+Smith Machine Incline Tricep Extension
+Smith Machine Reverse Decline Close Grip Bench Press
+Smith Reverse Calf Raises
+Smith Reverse Grip Bent Over Row
+Smith Reverse Grip Press
+Smith Seated Shoulder Press
+Smith Seated Wrist Curl
+Smith Shoulder Press
+Smith Shrug
+Smith Single Leg Split Squat
+Smith Split Squat
+Smith Squat
+Smith Squat To Bench
+Smith Standing Behind Head Military Press
+Smith Standing Military Press
+Smith Stiff Legged Deadlift
+Smith Toe Raise
+Smith Upright Row
+Smith Wide Grip Bench Press
+Smith Wide Grip Decline Bench Press
+Smith Zercher Squat
+Spine Twist
+Split Squats
+Tricep Dip
+Triceps Dip
+Triceps Dips Floor
+Tuck Crunch
+Twin Handle Parallel Grip Lat Pulldown
+Underhand Grip Inverted Back Row
+Vertical Leg Raise (On Parallel Bars)
+Walking Lunge
+Weighted Bench Dip
+Weighted Hanging Leg Hip Raise
+Wide Grip Chest Dip On High Parallel Bars
+Wide Grip Pull-Up
+Wide Grip Pull-Up On Dip Cage
+Wide Grip Rear Pull-Up
+Wide Hand Push-Up
+Wipers (Straight Leg)

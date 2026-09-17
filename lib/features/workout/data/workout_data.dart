@@ -1,0 +1,427 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class WorkoutExerciseDef {
+  final String id;
+  final String name;
+  final String muscle;
+  final String equipment;
+  final int defaultSets;
+  final double defaultWeight;
+  final int defaultReps;
+
+  const WorkoutExerciseDef({
+    required this.id,
+    required this.name,
+    required this.muscle,
+    required this.equipment,
+    this.defaultSets = 3,
+    this.defaultWeight = 40,
+    this.defaultReps = 8,
+  });
+}
+
+class RoutineDay {
+  final String id;
+  final String name;
+  final List<String> exerciseIds;
+  final String tag;
+
+  const RoutineDay({
+    required this.id,
+    required this.name,
+    required this.exerciseIds,
+    this.tag = '',
+  });
+}
+
+class PlanDef {
+  final String id;
+  final String name;
+  final bool active;
+  final bool aiGenerated;
+  final List<RoutineDay> days;
+
+  const PlanDef({
+    required this.id,
+    required this.name,
+    this.active = false,
+    this.aiGenerated = false,
+    required this.days,
+  });
+
+  PlanDef copyWith({bool? active}) => PlanDef(
+        id: id,
+        name: name,
+        active: active ?? this.active,
+        aiGenerated: aiGenerated,
+        days: days,
+      );
+}
+
+class LoggedSet {
+  double weight;
+  int reps;
+  bool done;
+
+  LoggedSet({required this.weight, required this.reps, this.done = false});
+}
+
+class ActiveExercise {
+  final String id;
+  final String name;
+  final String muscle;
+  bool expanded;
+  final List<LoggedSet> sets;
+
+  ActiveExercise({
+    required this.id,
+    required this.name,
+    required this.muscle,
+    this.expanded = true,
+    required this.sets,
+  });
+}
+
+class ActiveWorkoutState {
+  final bool hasSession;
+  final String title;
+  final List<ActiveExercise> exercises;
+  final int restSeconds;
+  final int restTotal;
+  final bool restRunning;
+  final String? restExerciseName;
+  final DateTime? startedAt;
+  final bool finished;
+
+  const ActiveWorkoutState({
+    this.hasSession = false,
+    this.title = 'Empty Workout',
+    this.exercises = const [],
+    this.restSeconds = 60,
+    this.restTotal = 60,
+    this.restRunning = false,
+    this.restExerciseName,
+    this.startedAt,
+    this.finished = false,
+  });
+
+  int get loggedSets => exercises.fold(0, (p, e) => p + e.sets.where((s) => s.done).length);
+  int get totalSets => exercises.fold(0, (p, e) => p + e.sets.length);
+  bool get canFinish => loggedSets > 0;
+  double get restProgress => restTotal == 0 ? 0 : (restTotal - restSeconds) / restTotal;
+
+  ActiveWorkoutState copyWith({
+    bool? hasSession,
+    String? title,
+    List<ActiveExercise>? exercises,
+    int? restSeconds,
+    int? restTotal,
+    bool? restRunning,
+    String? restExerciseName,
+    DateTime? startedAt,
+    bool? finished,
+    bool clearRestName = false,
+  }) {
+    return ActiveWorkoutState(
+      hasSession: hasSession ?? this.hasSession,
+      title: title ?? this.title,
+      exercises: exercises ?? this.exercises,
+      restSeconds: restSeconds ?? this.restSeconds,
+      restTotal: restTotal ?? this.restTotal,
+      restRunning: restRunning ?? this.restRunning,
+      restExerciseName: clearRestName ? null : (restExerciseName ?? this.restExerciseName),
+      startedAt: startedAt ?? this.startedAt,
+      finished: finished ?? this.finished,
+    );
+  }
+}
+
+class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
+  ActiveWorkoutNotifier() : super(const ActiveWorkoutState());
+
+  void startEmpty() {
+    state = ActiveWorkoutState(
+      hasSession: true,
+      title: 'Empty Workout',
+      exercises: [],
+      startedAt: DateTime.now(),
+    );
+  }
+
+  void startFromDay(RoutineDay day, List<WorkoutExerciseDef> catalog) {
+    final exercises = day.exerciseIds.map((id) {
+      final def = catalog.firstWhere((e) => e.id == id, orElse: () => catalog.first);
+      return ActiveExercise(
+        id: def.id,
+        name: def.name,
+        muscle: def.muscle,
+        sets: List.generate(
+          def.defaultSets,
+          (_) => LoggedSet(weight: def.defaultWeight, reps: def.defaultReps),
+        ),
+      );
+    }).toList();
+    state = ActiveWorkoutState(
+      hasSession: true,
+      title: day.name,
+      exercises: exercises,
+      startedAt: DateTime.now(),
+    );
+  }
+
+  void resume() {
+    if (!state.hasSession) return;
+    state = state.copyWith(finished: false);
+  }
+
+  void addExercise(WorkoutExerciseDef def) {
+    final list = [...state.exercises];
+    list.add(ActiveExercise(
+      id: def.id,
+      name: def.name,
+      muscle: def.muscle,
+      sets: List.generate(
+        def.defaultSets,
+        (_) => LoggedSet(weight: def.defaultWeight, reps: def.defaultReps),
+      ),
+    ));
+    state = state.copyWith(exercises: list);
+  }
+
+  void toggleSet(int exerciseIndex, int setIndex) {
+    final list = [...state.exercises];
+    final ex = list[exerciseIndex];
+    final sets = [...ex.sets];
+    final wasDone = sets[setIndex].done;
+    sets[setIndex].done = !wasDone;
+    list[exerciseIndex] = ActiveExercise(
+      id: ex.id,
+      name: ex.name,
+      muscle: ex.muscle,
+      expanded: ex.expanded,
+      sets: sets,
+    );
+    state = state.copyWith(exercises: list);
+    if (!wasDone) {
+      startRest(ex.name);
+    }
+  }
+
+  void updateSet(int exerciseIndex, int setIndex, {double? weight, int? reps}) {
+    final list = [...state.exercises];
+    final ex = list[exerciseIndex];
+    final sets = [...ex.sets];
+    if (weight != null) sets[setIndex].weight = weight;
+    if (reps != null) sets[setIndex].reps = reps;
+    list[exerciseIndex] = ActiveExercise(
+      id: ex.id,
+      name: ex.name,
+      muscle: ex.muscle,
+      expanded: ex.expanded,
+      sets: sets,
+    );
+    state = state.copyWith(exercises: list);
+  }
+
+  void addSet(int exerciseIndex) {
+    final list = [...state.exercises];
+    final ex = list[exerciseIndex];
+    final last = ex.sets.isNotEmpty ? ex.sets.last : LoggedSet(weight: 40, reps: 8);
+    final sets = [...ex.sets, LoggedSet(weight: last.weight, reps: last.reps)];
+    list[exerciseIndex] = ActiveExercise(
+      id: ex.id,
+      name: ex.name,
+      muscle: ex.muscle,
+      expanded: ex.expanded,
+      sets: sets,
+    );
+    state = state.copyWith(exercises: list);
+  }
+
+  void removeExercise(int index) {
+    final list = [...state.exercises]..removeAt(index);
+    state = state.copyWith(exercises: list);
+  }
+
+  void toggleExpand(int index) {
+    final list = [...state.exercises];
+    final ex = list[index];
+    list[index] = ActiveExercise(
+      id: ex.id,
+      name: ex.name,
+      muscle: ex.muscle,
+      expanded: !ex.expanded,
+      sets: ex.sets,
+    );
+    state = state.copyWith(exercises: list);
+  }
+
+  void completeAllUnfinished() {
+    final list = state.exercises.map((ex) {
+      for (final s in ex.sets) {
+        s.done = true;
+      }
+      return ex;
+    }).toList();
+    state = state.copyWith(exercises: list, finished: true, hasSession: false, clearRestName: true, restRunning: false);
+  }
+
+  void discardSetsAndFinish() {
+    state = state.copyWith(finished: true, hasSession: false, clearRestName: true, restRunning: false);
+  }
+
+  void discardWorkout() {
+    state = const ActiveWorkoutState();
+  }
+
+  void startRest(String name, {int seconds = 60}) {
+    state = state.copyWith(
+      restRunning: true,
+      restSeconds: seconds,
+      restTotal: seconds,
+      restExerciseName: name,
+    );
+  }
+
+  void tickRest() {
+    if (!state.restRunning) return;
+    if (state.restSeconds <= 0) {
+      state = state.copyWith(restRunning: false, restSeconds: 0);
+      return;
+    }
+    state = state.copyWith(restSeconds: state.restSeconds - 1);
+  }
+
+  void adjustRest(int delta) {
+    final next = (state.restSeconds + delta).clamp(0, 600);
+    final total = state.restTotal < next ? next : state.restTotal;
+    state = state.copyWith(restSeconds: next, restTotal: total, restRunning: true);
+  }
+
+  void skipRest() {
+    state = state.copyWith(restRunning: false, restSeconds: 0, clearRestName: true);
+  }
+}
+
+final activeWorkoutProvider =
+    StateNotifierProvider<ActiveWorkoutNotifier, ActiveWorkoutState>((ref) => ActiveWorkoutNotifier());
+
+class PlansNotifier extends StateNotifier<List<PlanDef>> {
+  PlansNotifier() : super(WorkoutCatalog.plans);
+
+  void activate(String id) {
+    state = state.map((p) => p.copyWith(active: p.id == id)).toList();
+  }
+
+  PlanDef get active => state.firstWhere((p) => p.active, orElse: () => state.first);
+}
+
+final plansProvider = StateNotifierProvider<PlansNotifier, List<PlanDef>>((ref) => PlansNotifier());
+
+class WorkoutCatalog {
+  static const muscles = [
+    'All',
+    'Chest',
+    'Shoulders',
+    'Back',
+    'Arms',
+    'Legs',
+    'Core',
+    'Waist',
+  ];
+
+  static const equipment = ['Barbell', 'Dumbbell', 'Machine', 'Cable', 'Bodyweight'];
+
+  static const exercises = <WorkoutExerciseDef>[
+    WorkoutExerciseDef(id: 'bbs', name: 'Barbell Back Squat', muscle: 'Legs', equipment: 'Barbell', defaultWeight: 135),
+    WorkoutExerciseDef(id: 'bbp', name: 'Barbell Bench Press', muscle: 'Chest', equipment: 'Barbell', defaultWeight: 155),
+    WorkoutExerciseDef(id: 'br', name: 'Barbell Row', muscle: 'Back', equipment: 'Barbell', defaultWeight: 135),
+    WorkoutExerciseDef(id: 'cc', name: 'Cable Crunch', muscle: 'Core', equipment: 'Cable', defaultWeight: 40),
+    WorkoutExerciseDef(id: 'cf', name: 'Cable Fly', muscle: 'Chest', equipment: 'Cable', defaultWeight: 30),
+    WorkoutExerciseDef(id: 'cdl', name: 'Conventional Deadlift', muscle: 'Back', equipment: 'Barbell', defaultWeight: 185),
+    WorkoutExerciseDef(id: 'dbc', name: 'Dumbbell Bicep Curl', muscle: 'Arms', equipment: 'Dumbbell', defaultWeight: 20),
+    WorkoutExerciseDef(id: 'hc', name: 'Hammer Curl', muscle: 'Arms', equipment: 'Dumbbell', defaultWeight: 20),
+    WorkoutExerciseDef(id: 'ohp', name: 'Overhead Press', muscle: 'Shoulders', equipment: 'Barbell', defaultWeight: 95),
+    WorkoutExerciseDef(id: 'lp', name: 'Leg Press', muscle: 'Legs', equipment: 'Machine', defaultWeight: 270),
+    WorkoutExerciseDef(id: 'scr', name: 'Standing Calf Raise', muscle: 'Legs', equipment: 'Machine', defaultWeight: 150, defaultReps: 13),
+    WorkoutExerciseDef(id: 'pu', name: 'Push Up', muscle: 'Chest', equipment: 'Bodyweight', defaultWeight: 0),
+    WorkoutExerciseDef(id: 'plank', name: 'Plank', muscle: 'Core', equipment: 'Bodyweight', defaultWeight: 0),
+    WorkoutExerciseDef(id: 'llr', name: 'Lying Leg Raise', muscle: 'Waist', equipment: 'Bodyweight', defaultWeight: 0),
+    WorkoutExerciseDef(id: 'lat', name: 'Lat Pulldown', muscle: 'Back', equipment: 'Cable', defaultWeight: 100),
+    WorkoutExerciseDef(id: 'fly', name: 'Dumbbell Fly', muscle: 'Chest', equipment: 'Dumbbell', defaultWeight: 25),
+    WorkoutExerciseDef(id: 'ls', name: 'Lateral Raise', muscle: 'Shoulders', equipment: 'Dumbbell', defaultWeight: 15),
+    WorkoutExerciseDef(id: 'rdl', name: 'Romanian Deadlift', muscle: 'Legs', equipment: 'Barbell', defaultWeight: 135),
+    WorkoutExerciseDef(id: 'dip', name: 'Dip', muscle: 'Chest', equipment: 'Bodyweight', defaultWeight: 0),
+    WorkoutExerciseDef(id: 'fp', name: 'Face Pull', muscle: 'Shoulders', equipment: 'Cable', defaultWeight: 40),
+    WorkoutExerciseDef(id: 'te', name: 'Tricep Extension', muscle: 'Arms', equipment: 'Cable', defaultWeight: 35),
+    WorkoutExerciseDef(id: 'legcurl', name: 'Leg Curl', muscle: 'Legs', equipment: 'Machine', defaultWeight: 80),
+    WorkoutExerciseDef(id: 'legext', name: 'Leg Extension', muscle: 'Legs', equipment: 'Machine', defaultWeight: 90),
+    WorkoutExerciseDef(id: 'shrug', name: 'Barbell Shrug', muscle: 'Shoulders', equipment: 'Barbell', defaultWeight: 135),
+  ];
+
+  static final plans = <PlanDef>[
+    PlanDef(
+      id: 'my',
+      name: 'My',
+      days: [
+        RoutineDay(id: 'my1', name: 'Day 1', exerciseIds: ['bbs'], tag: 'Legs'),
+      ],
+    ),
+    PlanDef(
+      id: 'plan',
+      name: 'Plan',
+      days: [
+        RoutineDay(id: 'p1', name: 'Day 1', exerciseIds: ['bbp', 'cf'], tag: 'Chest'),
+      ],
+    ),
+    PlanDef(
+      id: 'jml',
+      name: 'jml',
+      active: true,
+      days: [
+        RoutineDay(id: 'd1', name: 'Day 1', exerciseIds: ['bbs'], tag: 'Legs'),
+        RoutineDay(id: 'd2', name: 'Day 2', exerciseIds: ['bbp', 'cc'], tag: 'Chest · Core'),
+      ],
+    ),
+    PlanDef(
+      id: 'ppl',
+      name: 'Push / Pull / Legs',
+      aiGenerated: true,
+      days: [
+        RoutineDay(id: 'push', name: 'Push day', exerciseIds: ['cf', 'bbp'], tag: 'Chest'),
+        RoutineDay(id: 'pull', name: 'Pull day', exerciseIds: ['br', 'lat'], tag: 'Back'),
+        RoutineDay(id: 'legs', name: 'Legs day', exerciseIds: ['bbs', 'lp'], tag: 'Legs'),
+      ],
+    ),
+  ];
+
+  static WorkoutExerciseDef byId(String id) =>
+      exercises.firstWhere((e) => e.id == id, orElse: () => exercises.first);
+
+  static IconData muscleIcon(String muscle) {
+    switch (muscle) {
+      case 'Chest':
+        return Icons.accessibility_new;
+      case 'Shoulders':
+        return Icons.sports_gymnastics;
+      case 'Back':
+        return Icons.airline_seat_recline_extra;
+      case 'Arms':
+        return Icons.fitness_center;
+      case 'Legs':
+        return Icons.directions_walk;
+      case 'Core':
+      case 'Waist':
+        return Icons.self_improvement;
+      default:
+        return Icons.grid_view_rounded;
+    }
+  }
+}
+
+String formatRest(int seconds) {
+  final m = seconds ~/ 60;
+  final s = seconds % 60;
+  return '$m:${s.toString().padLeft(2, '0')}';
+}
