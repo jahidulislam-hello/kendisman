@@ -81,8 +81,8 @@ class _AppIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     const colors = AppColors.dark;
     return Container(
-      width: 92,
-      height: 92,
+      width: 94,
+      height: 94,
       decoration: BoxDecoration(
         color: const Color(0xFF161A2C),
         borderRadius: BorderRadius.circular(24),
