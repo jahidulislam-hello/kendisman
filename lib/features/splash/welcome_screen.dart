@@ -96,7 +96,7 @@ class _WelcomeFallback extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text('Millions', style: TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800)),
-          const Text('of users choice', style: TextStyle(color: Colors.white, fontSize: 16)),
+          const Text('of users choices', style: TextStyle(color: Colors.white, fontSize: 16)),
           const Spacer(),
           GestureDetector(
             onTap: onSignIn,
