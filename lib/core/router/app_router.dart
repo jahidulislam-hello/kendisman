@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:fitzella/core/providers/auth_provider.dart';
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/features/auth/auth_screens.dart';
 import 'package:fitzella/features/onboarding/onboarding_screens.dart';
 import 'package:fitzella/features/splash/splash_screen.dart';
@@ -59,14 +60,48 @@ class AppRouter {
     if (loc == '/onboarding') return '/onboarding/welcome';
     if (loc == '/' || loc.isEmpty) return '/splash';
 
-    // After email confirmation deep link, session exists → leave auth/splash/welcome.
+    // Let splash decide the first destination after cold start.
+    if (loc == '/splash') return null;
+
     final auth = ref.read(authNotifierProvider);
-    if (auth.session != null && !auth.pendingPasswordRecovery) {
-      final onAuthFlow = loc.startsWith('/auth') || loc == '/splash' || loc == '/welcome';
-      if (onAuthFlow) {
-        final onboarded = auth.profile?.onboarded ?? false;
-        return onboarded ? '/home' : '/onboarding/welcome';
-      }
+    final session = auth.session;
+    final pendingRecovery = auth.pendingPasswordRecovery;
+    final isAuthRoute = loc.startsWith('/auth');
+    final isOnboarding = loc.startsWith('/onboarding');
+    final isAppShell = loc.startsWith('/home') ||
+        loc.startsWith('/workout') ||
+        loc.startsWith('/progress') ||
+        loc.startsWith('/profile') ||
+        loc.startsWith('/library') ||
+        loc.startsWith('/add-exercise') ||
+        loc.startsWith('/compare-exercises') ||
+        loc.startsWith('/share-workout');
+
+    // Signed out → keep auth/welcome public; block app + onboarding.
+    if (session == null) {
+      if (isAppShell || isOnboarding) return '/welcome';
+      return null;
+    }
+
+    // Password recovery session must finish reset before using the app.
+    if (pendingRecovery) {
+      final onRecovery =
+          loc == '/auth/reset-password' || loc.startsWith('/auth/verify-otp');
+      if (!onRecovery) return '/auth/reset-password';
+      return null;
+    }
+
+    final cachedOnboarded = ref.read(cachedProfileProvider)?.onboarded == true;
+    final onboarded = auth.profile?.onboarded == true || cachedOnboarded;
+
+    // After email confirmation deep link / successful login, leave auth/welcome.
+    if (isAuthRoute || loc == '/welcome') {
+      return onboarded ? '/home' : '/onboarding/welcome';
+    }
+
+    // Guard main tabs until profile setup is finished.
+    if (!onboarded && isAppShell) {
+      return '/onboarding/welcome';
     }
 
     return null;

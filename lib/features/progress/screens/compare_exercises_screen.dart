@@ -34,8 +34,9 @@ class _CompareExercisesScreenState extends State<CompareExercisesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0F),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -51,11 +52,11 @@ class _CompareExercisesScreenState extends State<CompareExercisesScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF17171C),
+                      color: colors.surface,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFF26262E)),
+                      border: Border.all(color: colors.border),
                     ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 20),
+                    child: Icon(Icons.add, color: colors.textPrimary, size: 20),
                   ),
                 ),
               ),
@@ -77,13 +78,13 @@ class _CompareExercisesScreenState extends State<CompareExercisesScreen> {
                             Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                              child: Text(name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
                             ),
-                            const Text('119 lb', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 13)),
+                            Text('119 lb', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                             const SizedBox(width: 8),
                             GestureDetector(
                               onTap: () => setState(() => _selected.removeAt(i)),
-                              child: const Icon(Icons.close, color: Color(0xFF6B6B75), size: 18),
+                              child: Icon(Icons.close, color: colors.textMuted, size: 18),
                             ),
                           ],
                         ),
@@ -123,7 +124,7 @@ class _CompareExercisesScreenState extends State<CompareExercisesScreen> {
                                   const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
                                   final i = v.toInt();
                                   if (i < 0 || i >= months.length) return const SizedBox.shrink();
-                                  return Text(months[i], style: const TextStyle(color: Color(0xFF6B6B75), fontSize: 11));
+                                  return Text(months[i], style: TextStyle(color: colors.textMuted, fontSize: 11));
                                 },
                               ),
                             ),
@@ -174,10 +175,10 @@ class _CompareExercisesScreenState extends State<CompareExercisesScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: _MiniStat(
                           icon: Icons.calendar_today,
-                          iconColor: Color(0xFF2563EB),
+                          iconColor: colors.accent,
                           label: 'SESSIONS',
                           value: '26',
                         ),
@@ -209,6 +210,7 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return ProgressSurfaceCard(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -216,13 +218,13 @@ class _MiniStat extends StatelessWidget {
         children: [
           Icon(icon, color: iconColor, size: 18),
           const SizedBox(height: 10),
-          Text(label, style: const TextStyle(color: Color(0xFF6B6B75), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+          Text(label, style: TextStyle(color: colors.textMuted, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
           const SizedBox(height: 4),
           Row(
             children: [
-              Flexible(child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis)),
+              Flexible(child: Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis)),
               const SizedBox(width: 2),
-              const Icon(Icons.north_east, color: Color(0xFF22C55E), size: 14),
+              Icon(Icons.north_east, color: colors.success, size: 14),
             ],
           ),
         ],
@@ -251,15 +253,16 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final options = ProgressMockData.exerciseOptions
         .where((e) => e.name.toLowerCase().contains(_query.toLowerCase()))
         .toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0B0B0F),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         child: Column(
@@ -268,15 +271,15 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
               padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
               child: Row(
                 children: [
-                  const Expanded(
-                    child: Text('Select Exercises', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                  Expanded(
+                    child: Text('Select Exercises', style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(color: Color(0xFF17171C), shape: BoxShape.circle),
-                      child: const Icon(Icons.close, color: Colors.white, size: 18),
+                      decoration: BoxDecoration(color: colors.surface, shape: BoxShape.circle),
+                      child: Icon(Icons.close, color: colors.textPrimary, size: 18),
                     ),
                   ),
                 ],
@@ -286,13 +289,13 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
                 onChanged: (v) => setState(() => _query = v),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search all exercises.',
-                  hintStyle: const TextStyle(color: Color(0xFF6B6B75)),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF6B6B75)),
+                  hintStyle: TextStyle(color: colors.textMuted),
+                  prefixIcon: Icon(Icons.search, color: colors.textMuted),
                   filled: true,
-                  fillColor: const Color(0xFF17171C),
+                  fillColor: colors.surface,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
               ),
@@ -301,13 +304,13 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: Color(0xFFF87171), size: 16),
+                  Icon(Icons.warning_amber_rounded, color: colors.danger, size: 16),
                   const SizedBox(width: 6),
-                  const Text('MAX 4 EXERCISES', style: TextStyle(color: Color(0xFFF87171), fontSize: 12, fontWeight: FontWeight.w700)),
+                  Text('MAX 4 EXERCISES', style: TextStyle(color: colors.danger, fontSize: 12, fontWeight: FontWeight.w700)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => setState(() => _selected.clear()),
-                    child: const Text('Clear All', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                    child: Text('Clear All', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -333,9 +336,9 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF17171C),
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: selected ? const Color(0xFF2563EB) : const Color(0xFF26262E), width: selected ? 1.5 : 1),
+                        border: Border.all(color: selected ? colors.accent : colors.border, width: selected ? 1.5 : 1),
                       ),
                       child: Row(
                         children: [
@@ -343,18 +346,18 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF121218),
+                              color: colors.background,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.fitness_center, color: Color(0xFF2563EB), size: 18),
+                            child: Icon(Icons.fitness_center, color: colors.accent, size: 18),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(ex.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                                Text(ex.muscle, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                                Text(ex.name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                                Text(ex.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
                               ],
                             ),
                           ),
@@ -363,10 +366,10 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
                             height: 24,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: selected ? const Color(0xFF2563EB) : Colors.transparent,
-                              border: Border.all(color: selected ? const Color(0xFF2563EB) : const Color(0xFF3A3A44), width: 1.5),
+                              color: selected ? colors.accent : Colors.transparent,
+                              border: Border.all(color: selected ? colors.accent : colors.border, width: 1.5),
                             ),
-                            child: selected ? const Icon(Icons.check, color: Colors.white, size: 14) : null,
+                            child: selected ? Icon(Icons.check, color: colors.onAccent, size: 14) : null,
                           ),
                         ],
                       ),
@@ -383,8 +386,8 @@ class _SelectExercisesSheetState extends State<_SelectExercisesSheet> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context, _selected.toList()),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.onAccent,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),

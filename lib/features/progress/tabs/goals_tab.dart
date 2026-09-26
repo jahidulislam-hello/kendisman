@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/features/progress/data/progress_mock_data.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
@@ -16,6 +17,7 @@ class _GoalsTabState extends State<GoalsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
@@ -37,12 +39,12 @@ class _GoalsTabState extends State<GoalsTab> {
           ],
         ),
         const SizedBox(height: 16),
-        if (_sub == 0) ..._active() else ..._completed(),
+        if (_sub == 0) ..._active(colors) else ..._completed(colors),
       ],
     );
   }
 
-  List<Widget> _active() {
+  List<Widget> _active(AppColors colors) {
     final goals = ProgressMockData.activeGoals;
     return [
       Row(
@@ -60,16 +62,16 @@ class _GoalsTabState extends State<GoalsTab> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF3A3A44), width: 1.2),
+            border: Border.all(color: colors.border, width: 1.2),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_circle_outline, color: Color(0xFF9B9BA5), size: 20),
-              SizedBox(width: 8),
+              Icon(Icons.add_circle_outline, color: colors.textSecondary, size: 20),
+              const SizedBox(width: 8),
               Text(
                 'Set a new target goal',
-                style: TextStyle(color: Color(0xFFCFCFD6), fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(color: colors.textSecondary, fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -78,36 +80,36 @@ class _GoalsTabState extends State<GoalsTab> {
     ];
   }
 
-  List<Widget> _completed() {
+  List<Widget> _completed(AppColors colors) {
     return [
       ProgressSurfaceCard(
         color: const Color(0xFF13261C),
         borderColor: const Color(0xFF1F3A28),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.check_circle, color: Color(0xFF4ADE80), size: 16),
-                      SizedBox(width: 6),
-                      Text('Goal Milestone Reached', style: TextStyle(color: Color(0xFF4ADE80), fontSize: 12, fontWeight: FontWeight.w600)),
+                      Icon(Icons.check_circle, color: colors.success, size: 16),
+                      const SizedBox(width: 6),
+                      Text('Goal Milestone Reached', style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.w600)),
                     ],
                   ),
-                  SizedBox(height: 8),
-                  Text('1 Goal Completed 🎉', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-                  SizedBox(height: 4),
-                  Text('Target surpassed ahead of schedule', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                  const SizedBox(height: 8),
+                  Text('1 Goal Completed 🎉', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text('Target surpassed ahead of schedule', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
             Container(
               width: 52,
               height: 52,
-              decoration: const BoxDecoration(
-                color: Color(0xFF2563EB),
+              decoration: BoxDecoration(
+                color: colors.accent,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.emoji_events, color: Color(0xFFFBBF24), size: 28),
@@ -128,10 +130,10 @@ class _GoalsTabState extends State<GoalsTab> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4ADE80).withValues(alpha: 0.15),
+                    color: colors.success.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text('Done', style: TextStyle(color: Color(0xFF4ADE80), fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: Text('Done', style: TextStyle(color: colors.success, fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               ],
             ),
@@ -143,35 +145,35 @@ class _GoalsTabState extends State<GoalsTab> {
                   height: 56,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF2563EB), width: 4),
-                    color: const Color(0xFF2563EB),
+                    border: Border.all(color: colors.accent, width: 4),
+                    color: colors.accent,
                   ),
-                  child: const Icon(Icons.check, color: Colors.white),
+                  child: Icon(Icons.check, color: colors.onAccent),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Train 3x a week for a month', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-                      SizedBox(height: 4),
-                      Text('Current: 2 lb • Due 24 Aug 2026', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                      Text('Train 3x a week for a month', style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text('Current: 2 lb • Due 24 Aug 2026', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            const Divider(color: Color(0xFF26262E), height: 1),
+            Divider(color: colors.border, height: 1),
             const SizedBox(height: 10),
-            const Row(
+            Row(
               children: [
-                Icon(Icons.history, color: Color(0xFF4ADE80), size: 16),
-                SizedBox(width: 6),
-                Text('Finished Aug 24, 2024', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
-                Spacer(),
-                Text('Details', style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w600)),
-                Icon(Icons.chevron_right, color: Color(0xFF2563EB), size: 18),
+                Icon(Icons.history, color: colors.success, size: 16),
+                const SizedBox(width: 6),
+                Text('Finished Aug 24, 2024', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                const Spacer(),
+                Text('Details', style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
+                Icon(Icons.chevron_right, color: colors.accent, size: 18),
               ],
             ),
           ],
@@ -182,37 +184,37 @@ class _GoalsTabState extends State<GoalsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Text('🙌', style: TextStyle(fontSize: 14)),
-                SizedBox(width: 6),
-                Text('HABIT CONTINUITY', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-                Spacer(),
-                Text('4-Week Run', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                const Text('🙌', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text('HABIT CONTINUITY', style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+                const Spacer(),
+                Text('4-Week Run', style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: List.generate(4, (i) {
                 final last = i == 3;
-                final color = last ? const Color(0xFF22C55E) : const Color(0xFF2563EB);
+                final weekColor = last ? const Color(0xFF22C55E) : colors.accent;
                 return Expanded(
                   child: Container(
                     margin: EdgeInsets.only(right: i == 3 ? 0 : 8),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: color),
+                      border: Border.all(color: weekColor),
                     ),
                     child: Column(
                       children: [
-                        Text('WK ${i + 1}', style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+                        Text('WK ${i + 1}', style: TextStyle(color: weekColor, fontSize: 11, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
                         Container(
                           width: 22,
                           height: 22,
-                          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                          child: const Icon(Icons.check, color: Colors.white, size: 14),
+                          decoration: BoxDecoration(color: weekColor, shape: BoxShape.circle),
+                          child: Icon(Icons.check, color: colors.onAccent, size: 14),
                         ),
                       ],
                     ),
@@ -244,26 +246,27 @@ class _SubChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF2563EB) : const Color(0xFF17171C),
+          color: selected ? colors.accent : colors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? const Color(0xFF2563EB) : const Color(0xFF2A2A32)),
+          border: Border.all(color: selected ? colors.accent : colors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (showDot && selected) ...[
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+              Container(width: 6, height: 6, decoration: BoxDecoration(color: colors.onAccent, shape: BoxShape.circle)),
               const SizedBox(width: 6),
             ],
             Text(
               label,
               style: TextStyle(
-                color: selected ? Colors.white : const Color(0xFF9B9BA5),
+                color: selected ? colors.onAccent : colors.textSecondary,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -274,8 +277,8 @@ class _SubChip extends StatelessWidget {
                 width: 18,
                 height: 18,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: Text(badge!, style: const TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.w800)),
+                decoration: BoxDecoration(color: colors.onAccent, shape: BoxShape.circle),
+                child: Text(badge!, style: TextStyle(color: colors.accent, fontSize: 11, fontWeight: FontWeight.w800)),
               ),
             ],
           ],
@@ -291,6 +294,7 @@ class _GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final isConsistency = goal.type == 'CONSISTENCY';
     return ProgressSurfaceCard(
       child: Column(
@@ -315,11 +319,11 @@ class _GoalCard extends StatelessWidget {
                   child: CircularProgressIndicator(
                     value: goal.percent / 100,
                     strokeWidth: 8,
-                    backgroundColor: const Color(0xFF2A2A32),
-                    color: const Color(0xFF2563EB),
+                    backgroundColor: colors.border,
+                    color: colors.accent,
                   ),
                 ),
-                Text('${goal.percent}%', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                Text('${goal.percent}%', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
               ],
             ),
           ),
@@ -327,11 +331,11 @@ class _GoalCard extends StatelessWidget {
           Text(
             goal.title,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700, height: 1.25),
+            style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700, height: 1.25),
           ),
           const SizedBox(height: 10),
-          Text('Current: ${goal.current}', style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 11)),
-          Text('Due ${goal.due}', style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 11)),
+          Text('Current: ${goal.current}', style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+          Text('Due ${goal.due}', style: TextStyle(color: colors.textSecondary, fontSize: 11)),
         ],
       ),
     );

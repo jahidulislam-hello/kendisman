@@ -35,12 +35,13 @@ class _ProgressExerciseDetailScreenState extends State<ProgressExerciseDetailScr
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final name = ProgressMockData.exerciseName(widget.exerciseId);
     final stats = ProgressMockData.exerciseStats[widget.exerciseId] ??
         ProgressMockData.exerciseStats['leg-press']!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0F),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,6 +94,7 @@ class _AboutTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final primary = stats['primaryMuscle'] ?? 'QUADS (PRIMARY)';
     final secondary = (stats['secondaryMuscles'] ?? 'GLUTES').split(',');
     final hasInstructions = exerciseId == 'leg-press';
@@ -102,22 +104,22 @@ class _AboutTab extends StatelessWidget {
       children: [
         if (!hasInstructions)
           ProgressSurfaceCard(
-            child: const Center(
+            child: Center(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 36),
-                child: Text('Video demo coming soon', style: TextStyle(color: Color(0xFF9B9BA5))),
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                child: Text('Video demo coming soon', style: TextStyle(color: colors.textSecondary)),
               ),
             ),
           ),
         if (!hasInstructions) const SizedBox(height: 10),
         ProgressSurfaceCard(
           onTap: () {},
-          child: const Row(
+          child: Row(
             children: [
               Expanded(
-                child: Text('Watch how-to videos on YouTube', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                child: Text('Watch how-to videos on YouTube', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
               ),
-              Icon(Icons.chevron_right, color: Color(0xFF2563EB)),
+              Icon(Icons.chevron_right, color: colors.accent),
             ],
           ),
         ),
@@ -136,7 +138,7 @@ class _AboutTab extends StatelessWidget {
         const ProgressFilterLabel('Instructions'),
         const SizedBox(height: 10),
         if (!hasInstructions)
-          const Text('Instructions coming soon', style: TextStyle(color: Color(0xFF9B9BA5)))
+          Text('Instructions coming soon', style: TextStyle(color: colors.textSecondary))
         else
           ProgressSurfaceCard(
             child: Column(
@@ -148,14 +150,14 @@ class _AboutTab extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.2),
-                        child: Text('${i + 1}', style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.w700)),
+                        backgroundColor: colors.accent.withValues(alpha: 0.2),
+                        child: Text('${i + 1}', style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           ProgressMockData.legPressInstructions[i],
-                          style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35),
+                          style: TextStyle(color: colors.textPrimary, fontSize: 14, height: 1.35),
                         ),
                       ),
                     ],
@@ -176,17 +178,18 @@ class _MuscleTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: primary ? const Color(0xFF2563EB).withValues(alpha: 0.12) : const Color(0xFF17171C),
+        color: primary ? colors.accent.withValues(alpha: 0.12) : colors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primary ? const Color(0xFF2563EB) : const Color(0xFF2A2A32)),
+        border: Border.all(color: primary ? colors.accent : colors.border),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: primary ? const Color(0xFF60A5FA) : const Color(0xFF9B9BA5),
+          color: primary ? colors.accent : colors.textSecondary,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -201,6 +204,7 @@ class _HistoryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final sessions = ProgressMockData.exerciseHistory[exerciseId] ??
         ProgressMockData.exerciseHistory['leg-press']!;
 
@@ -215,9 +219,9 @@ class _HistoryTab extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(session.dateLabel, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                  Text(session.dateLabel, style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
                   const Spacer(),
-                  const Text('1RM', style: TextStyle(color: Color(0xFF6B6B75), fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('1RM', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -228,21 +232,21 @@ class _HistoryTab extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundColor: const Color(0xFF2A2A32),
-                        child: Text('${s.set}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        backgroundColor: colors.border,
+                        child: Text('${s.set}', style: TextStyle(color: colors.textPrimary, fontSize: 12)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(s.weightReps, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        child: Text(s.weightReps, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
                       ),
                       if (s.isPr) ...[
-                        const Icon(Icons.emoji_events, color: Color(0xFF2563EB), size: 16),
+                        Icon(Icons.emoji_events, color: colors.accent, size: 16),
                         const SizedBox(width: 4),
                       ],
                       Text(
                         s.oneRm,
                         style: TextStyle(
-                          color: s.isPr ? const Color(0xFF60A5FA) : const Color(0xFFCFCFD6),
+                          color: s.isPr ? colors.accent : colors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -281,6 +285,7 @@ class _ProgressTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final best = ProgressMockData.bestSets[exerciseId] ?? ProgressMockData.bestSets['leg-press']!;
     final isDeadlift = exerciseId == 'conventional-deadlift';
 
@@ -319,8 +324,8 @@ class _ProgressTab extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: true,
-                  getDrawingHorizontalLine: (_) => const FlLine(color: Color(0xFF2A2A32), strokeWidth: 1, dashArray: [4, 4]),
-                  getDrawingVerticalLine: (_) => const FlLine(color: Color(0xFF2A2A32), strokeWidth: 1, dashArray: [4, 4]),
+                  getDrawingHorizontalLine: (_) => FlLine(color: colors.border, strokeWidth: 1, dashArray: [4, 4]),
+                  getDrawingVerticalLine: (_) => FlLine(color: colors.border, strokeWidth: 1, dashArray: [4, 4]),
                 ),
                 titlesData: FlTitlesData(
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -329,7 +334,7 @@ class _ProgressTab extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 34,
-                      getTitlesWidget: (v, m) => Text(v.toInt().toString(), style: const TextStyle(color: Color(0xFF6B6B75), fontSize: 10)),
+                      getTitlesWidget: (v, m) => Text(v.toInt().toString(), style: TextStyle(color: colors.textMuted, fontSize: 10)),
                     ),
                   ),
                   bottomTitles: AxisTitles(
@@ -343,7 +348,7 @@ class _ProgressTab extends StatelessWidget {
                         if (i < 0 || i >= labels.length) return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Text(labels[i], style: const TextStyle(color: Color(0xFF6B6B75), fontSize: 10)),
+                          child: Text(labels[i], style: TextStyle(color: colors.textMuted, fontSize: 10)),
                         );
                       },
                     ),
@@ -356,11 +361,11 @@ class _ProgressTab extends StatelessWidget {
                         ? const [FlSpot(0, 225), FlSpot(1, 240), FlSpot(2, 255), FlSpot(3, 262.5)]
                         : const [FlSpot(0, 270), FlSpot(1, 285), FlSpot(2, 300), FlSpot(3, 307.5)],
                     isCurved: true,
-                    color: const Color(0xFF2563EB),
+                    color: colors.accent,
                     barWidth: 3,
                     dotData: FlDotData(
                       show: true,
-                      getDotPainter: (s, p, b, i) => FlDotCirclePainter(radius: 4, color: const Color(0xFF2563EB), strokeWidth: 2, strokeColor: Colors.white),
+                      getDotPainter: (s, p, b, i) => FlDotCirclePainter(radius: 4, color: colors.accent, strokeWidth: 2, strokeColor: colors.surface),
                     ),
                     belowBarData: BarAreaData(
                       show: true,
@@ -368,8 +373,8 @@ class _ProgressTab extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFF2563EB).withValues(alpha: 0.3),
-                          const Color(0xFF2563EB).withValues(alpha: 0.0),
+                          colors.accent.withValues(alpha: 0.3),
+                          colors.accent.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -414,22 +419,22 @@ class _ProgressTab extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(b.weightReps, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                              Text(b.date, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                              Text(b.weightReps, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                              Text(b.date, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                             ],
                           ),
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(b.oneRm, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                            const Text('1RM', style: TextStyle(color: Color(0xFF6B6B75), fontSize: 11)),
+                            Text(b.oneRm, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                            Text('1RM', style: TextStyle(color: colors.textMuted, fontSize: 11)),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  if (b != best.last) const Divider(height: 1, color: Color(0xFF26262E)),
+                  if (b != best.last) Divider(height: 1, color: colors.border),
                 ],
               );
             }).toList(),
@@ -447,13 +452,14 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return ProgressSurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
           const SizedBox(height: 6),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+          Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
         ],
       ),
     );

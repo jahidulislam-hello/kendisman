@@ -36,7 +36,7 @@ class OnboardingWelcomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'fitzella',
+                    'Fitzella',
                     style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                 ],

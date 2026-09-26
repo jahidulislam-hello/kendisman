@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:fitzella/core/providers/auth_provider.dart';
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/features/profile/widgets/profile_widgets.dart';
@@ -15,6 +17,15 @@ class ProfileScreen extends ConsumerWidget {
     final colors = ref.watch(appColorsProvider);
     final theme = ref.watch(appThemeProvider);
     final units = ref.watch(unitsProvider);
+    final profile = ref.watch(cachedProfileProvider);
+    final remote = ref.watch(currentProfileProvider);
+    final name = profile?.displayName ??
+        remote?.username ??
+        (remote?.email.contains('@') == true ? remote!.email.split('@').first : null) ??
+        'Athlete';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
+    final photoUrl = remote?.photoUrl ?? profile?.photoUrl;
+    final tier = remote?.subscriptionTier.name ?? 'free';
     final appearanceLabel = switch (theme.preference) {
       ThemePreference.light => 'Light',
       ThemePreference.dark => 'Dark',
@@ -33,20 +44,31 @@ class ProfileScreen extends ConsumerWidget {
                   CircleAvatar(
                     radius: 52,
                     backgroundColor: colors.surface,
-                    child: Icon(Icons.person, size: 56, color: colors.textMuted),
+                    backgroundImage: photoUrl != null && photoUrl.isNotEmpty
+                        ? NetworkImage(photoUrl)
+                        : null,
+                    child: photoUrl == null || photoUrl.isEmpty
+                        ? Text(
+                            initial,
+                            style: TextStyle(color: colors.accent, fontSize: 36, fontWeight: FontWeight.w800),
+                          )
+                        : null,
                   ),
                   Positioned(
                     right: 2,
                     bottom: 2,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: colors.accent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: colors.background, width: 2),
+                    child: GestureDetector(
+                      onTap: () => context.push('/profile/edit'),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: colors.background, width: 2),
+                        ),
+                        child: Icon(Icons.camera_alt, color: colors.onAccent, size: 16),
                       ),
-                      child: Icon(Icons.camera_alt, color: colors.onAccent, size: 16),
                     ),
                   ),
                 ],
@@ -54,16 +76,24 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              'demo_athlete',
+              name,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 4),
             Text(
-              'Active - \$9.99/mo',
+              tier == 'free' ? 'Free plan' : 'Active · ${tier.toUpperCase()}',
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textSecondary, fontSize: 14),
             ),
+            if (profile?.goal != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Goal: ${profile!.goal}',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textMuted, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 28),
             const ProfileSectionLabel('App settings'),
             ProfileGroupCard(
@@ -207,7 +237,10 @@ class ProfileScreen extends ConsumerWidget {
               color: colors.surface,
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
-                onTap: () => context.go('/auth/login'),
+                onTap: () async {
+                  await ref.read(authNotifierProvider.notifier).signOut();
+                  if (context.mounted) context.go('/welcome');
+                },
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
                   width: double.infinity,

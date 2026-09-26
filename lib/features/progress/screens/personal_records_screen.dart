@@ -23,9 +23,10 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final items = _items;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0F),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -58,11 +59,11 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Text('Recent PRs', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                      Spacer(),
-                      Text('Last 30 days', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                      Text('Recent PRs', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      Text('Last 30 days', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -80,9 +81,9 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                             width: 130,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF17171C),
+                              color: colors.surface,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF26262E)),
+                              border: Border.all(color: colors.border),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,22 +93,22 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF4ADE80).withValues(alpha: 0.15),
+                                      color: colors.success.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: Text(item.delta, style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 11, fontWeight: FontWeight.w700)),
+                                    child: Text(item.delta, style: TextStyle(color: colors.success, fontSize: 11, fontWeight: FontWeight.w700)),
                                   ),
                                 ),
                                 const Spacer(),
-                                const Center(child: Icon(Icons.fitness_center, color: Color(0xFF2563EB), size: 28)),
+                                Center(child: Icon(Icons.fitness_center, color: colors.accent, size: 28)),
                                 const Spacer(),
                                 Text(
                                   item.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                                  style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
                                 ),
-                                Text(item.record, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 11)),
+                                Text(item.record, style: TextStyle(color: colors.textSecondary, fontSize: 11)),
                               ],
                             ),
                           ),
@@ -116,7 +117,7 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text('History', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text('History', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   ...List.generate(items.length, (i) {
                     final item = items[i];
@@ -134,13 +135,13 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                                   height: 34,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFF4ADE80), width: 1.5),
+                                    border: Border.all(color: colors.success, width: 1.5),
                                   ),
-                                  child: const Icon(Icons.fitness_center, color: Color(0xFF2563EB), size: 16),
+                                  child: Icon(Icons.fitness_center, color: colors.accent, size: 16),
                                 ),
                                 if (!isLast)
                                   Expanded(
-                                    child: Container(width: 1.5, color: const Color(0xFF2A2A32)),
+                                    child: Container(width: 1.5, color: colors.border),
                                   ),
                               ],
                             ),
@@ -157,15 +158,15 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(item.name, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-                                          Text(DateFormat('d MMM').format(item.date), style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                                          Text(item.name, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                                          Text(DateFormat('d MMM').format(item.date), style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                                           const SizedBox(height: 2),
                                           RichText(
                                             text: TextSpan(
-                                              style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 12),
+                                              style: TextStyle(color: colors.textSecondary, fontSize: 12),
                                               children: [
                                                 TextSpan(text: '${item.previous} → '),
-                                                TextSpan(text: item.current, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                                                TextSpan(text: item.current, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
                                               ],
                                             ),
                                           ),
@@ -175,10 +176,10 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF4ADE80).withValues(alpha: 0.15),
+                                        color: colors.success.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: Text(item.delta, style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 11, fontWeight: FontWeight.w700)),
+                                      child: Text(item.delta, style: TextStyle(color: colors.success, fontSize: 11, fontWeight: FontWeight.w700)),
                                     ),
                                   ],
                                 ),

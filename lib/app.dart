@@ -14,7 +14,7 @@ class FitzellaApp extends ConsumerWidget {
     final themeData = ref.watch(appThemeProvider);
 
     return MaterialApp.router(
-      title: 'Fitzella',
+      title: 'FitZella',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(themeData, Brightness.light),
       darkTheme: _buildTheme(themeData, Brightness.dark),
@@ -45,6 +45,9 @@ class FitzellaApp extends ConsumerWidget {
         onPrimary: colors.onAccent,
         secondary: colors.accent.withValues(alpha: 0.1),
         onSecondary: colors.accent,
+        // NavigationBar selected destination uses these by default.
+        secondaryContainer: colors.accent,
+        onSecondaryContainer: colors.onAccent,
         tertiary: colors.success,
         onTertiary: colors.onAccent,
         error: colors.danger,
@@ -158,12 +161,36 @@ class FitzellaApp extends ConsumerWidget {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: colors.background,
-        selectedItemColor: colors.accent,
+        selectedItemColor: colors.onAccent,
         unselectedItemColor: colors.textSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: colors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: colors.accent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            size: 24,
+            color: selected ? colors.onAccent : colors.textSecondary,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: selected
+                ? (isDark ? Colors.white : colors.accent)
+                : colors.textSecondary,
+          );
+        }),
       ),
       tabBarTheme: TabBarThemeData(
         labelColor: colors.accent,

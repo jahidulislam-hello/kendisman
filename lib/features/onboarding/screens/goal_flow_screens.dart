@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:fitzella/core/providers/auth_provider.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/features/onboarding/onboarding_provider.dart';
@@ -93,16 +94,22 @@ class OnboardingEquipmentScreen extends ConsumerWidget {
             subtitle: "We'll suggest exercises that match your available gear.",
           ),
           const SizedBox(height: 22),
-          ...options.map(
-            (o) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: OnboardingOptionCard(
-                colors: colors,
-                title: o.$1,
-                subtitle: o.$2,
-                selected: selected == o.$1,
-                onTap: () => ref.read(onboardingProvider.notifier).setEquipment(o.$1),
-              ),
+          Expanded(
+            child: ListView(
+              children: options
+                  .map(
+                    (o) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: OnboardingOptionCard(
+                        colors: colors,
+                        title: o.$1,
+                        subtitle: o.$2,
+                        selected: selected == o.$1,
+                        onTap: () => ref.read(onboardingProvider.notifier).setEquipment(o.$1),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ],
@@ -141,16 +148,22 @@ class OnboardingExperienceScreen extends ConsumerWidget {
             subtitle: 'Be honest — this helps us set the right starting point.',
           ),
           const SizedBox(height: 22),
-          ...options.map(
-            (o) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: OnboardingOptionCard(
-                colors: colors,
-                title: o.$1,
-                subtitle: o.$2,
-                selected: selected == o.$1,
-                onTap: () => ref.read(onboardingProvider.notifier).setExperience(o.$1),
-              ),
+          Expanded(
+            child: ListView(
+              children: options
+                  .map(
+                    (o) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: OnboardingOptionCard(
+                        colors: colors,
+                        title: o.$1,
+                        subtitle: o.$2,
+                        selected: selected == o.$1,
+                        onTap: () => ref.read(onboardingProvider.notifier).setExperience(o.$1),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ],
@@ -169,7 +182,8 @@ class OnboardingFrequencyScreen extends ConsumerWidget {
     final selected = ref.watch(onboardingProvider).frequency ?? 3;
 
     const options = [
-      (2, '2 days per week', 'Light — great for active recovery'),
+      (2, '2 days per week', 'Light — great for active recovery'
+      ),
       (3, '3 days per week', 'Balanced — ideal for most goals'),
       (4, '4 days per week', 'Focused — solid weekly volume'),
       (5, '5 days per week', 'Dedicated — serious commitment'),
@@ -190,16 +204,22 @@ class OnboardingFrequencyScreen extends ConsumerWidget {
             subtitle: 'Choose how many days per week you can commit to training.',
           ),
           const SizedBox(height: 22),
-          ...options.map(
-            (o) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: OnboardingOptionCard(
-                colors: colors,
-                title: o.$2,
-                subtitle: o.$3,
-                selected: selected == o.$1,
-                onTap: () => ref.read(onboardingProvider.notifier).setFrequency(o.$1),
-              ),
+          Expanded(
+            child: ListView(
+              children: options
+                  .map(
+                    (o) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: OnboardingOptionCard(
+                        colors: colors,
+                        title: o.$2,
+                        subtitle: o.$3,
+                        selected: selected == o.$1,
+                        onTap: () => ref.read(onboardingProvider.notifier).setFrequency(o.$1),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ],
@@ -465,11 +485,35 @@ class _PaywallBullet extends StatelessWidget {
 }
 
 /// 14 — Ready / Start Training
-class OnboardingReadyScreen extends ConsumerWidget {
+class OnboardingReadyScreen extends ConsumerStatefulWidget {
   const OnboardingReadyScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OnboardingReadyScreen> createState() => _OnboardingReadyScreenState();
+}
+
+class _OnboardingReadyScreenState extends ConsumerState<OnboardingReadyScreen> {
+  bool _saving = false;
+
+  Future<void> _finish() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final draft = ref.read(onboardingProvider);
+    final result =
+        await ref.read(authNotifierProvider.notifier).completeOnboarding(draft);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    result.when(
+      success: (_) => context.go('/home'),
+      error: (message) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        context.go('/home');
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
     final apple = ref.watch(onboardingProvider).appleHealthEnabled;
 
@@ -519,9 +563,9 @@ class OnboardingReadyScreen extends ConsumerWidget {
               _ReadyRow(colors: colors, text: apple ? 'Apple Health synced' : 'Apple Health skipped'),
               const Spacer(flex: 2),
               OnboardingPrimaryButton(
-                label: 'Start Training',
+                label: _saving ? 'Saving…' : 'Start Training',
                 background: kOnboardingGreen,
-                onPressed: () => context.go('/home'),
+                onPressed: _saving ? () {} : _finish,
               ),
             ],
           ),

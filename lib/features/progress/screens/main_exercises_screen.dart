@@ -16,15 +16,16 @@ class _MainExercisesScreenState extends State<MainExercisesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final items = ProgressMockData.mainExercises;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0F),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(12, 8, 20, 0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
               child: ProgressBackHeader(title: 'Main Exercises'),
             ),
             const SizedBox(height: 12),
@@ -60,33 +61,33 @@ class _MainExercisesScreenState extends State<MainExercisesScreen> {
                           width: 28,
                           child: Text(
                             '${i + 1}',
-                            style: const TextStyle(color: Color(0xFF2563EB), fontSize: 18, fontWeight: FontWeight.w800),
+                            style: TextStyle(color: colors.accent, fontSize: 18, fontWeight: FontWeight.w800),
                           ),
                         ),
                         Container(
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF121218),
+                            color: colors.background,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.fitness_center, color: Color(0xFF2563EB), size: 18),
+                          child: Icon(Icons.fitness_center, color: colors.accent, size: 18),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item.name, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-                              Text(item.muscle, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                              Text(item.name, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                              Text(item.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                             ],
                           ),
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('${item.sessions} sessions', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                            Text('${item.totalVolume} total', style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                            Text('${item.sessions} sessions', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                            Text('${item.totalVolume} total', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                           ],
                         ),
                       ],

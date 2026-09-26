@@ -20,8 +20,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0F),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,18 +34,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 children: [
                   Text(
                     'Progress',
-                    style: AppTypography.screenTitle.copyWith(color: Colors.white),
+                    style: AppTypography.screenTitle.copyWith(color: colors.textPrimary),
                   ),
                   const Spacer(),
                   Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF17171C),
+                      color: colors.surface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF26262E)),
+                      border: Border.all(color: colors.border),
                     ),
-                    child: const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 18),
+                    child: Icon(Icons.calendar_today_outlined, color: colors.textPrimary, size: 18),
                   ),
                 ],
               ),

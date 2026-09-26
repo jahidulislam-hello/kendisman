@@ -179,7 +179,7 @@ class _WorkoutCompleteScreenState extends ConsumerState<WorkoutCompleteScreen> w
                         children: [
                           Icon(Icons.circle, color: colors.onAccent, size: 18),
                           const SizedBox(width: 8),
-                          Text('fitzella', style: TextStyle(color: colors.onAccent, fontWeight: FontWeight.w800, fontSize: 16)),
+                          Text('Fitzella', style: TextStyle(color: colors.onAccent, fontWeight: FontWeight.w800, fontSize: 16)),
                         ],
                       ),
                     ],

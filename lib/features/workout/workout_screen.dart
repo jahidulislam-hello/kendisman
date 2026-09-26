@@ -93,44 +93,32 @@ class WorkoutScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 160,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: plan.days.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) {
-                  final day = plan.days[i];
-                  final names = day.exerciseIds.map((id) => WorkoutCatalog.byId(id).name).toList();
-                  return GestureDetector(
-                    onTap: () => showRoutinePreviewSheet(context, day),
-                    child: Container(
-                      width: 170,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: colors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(day.name, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 8),
-                          ...names.take(3).map(
-                                (n) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text('• $n', style: TextStyle(color: colors.textSecondary, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                ),
-                              ),
-                          const Spacer(),
-                          Text('Last: not yet', style: TextStyle(color: colors.textMuted, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final screenW = constraints.maxWidth;
+                // Show ~2.2 cards at a time on any screen width
+                final cardWidth = (screenW * 0.44).clamp(140.0, 220.0);
+                final cardHeight = (cardWidth * 0.95).clamp(130.0, 200.0);
+                return SizedBox(
+                  height: cardHeight,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: plan.days.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, i) {
+                      final day = plan.days[i];
+                      final names = day.exerciseIds.map((id) => WorkoutCatalog.byId(id).name).toList();
+                      return _RoutineDayCard(
+                        colors: colors,
+                        day: day,
+                        names: names,
+                        onTap: () => showRoutinePreviewSheet(context, day),
+                        width: cardWidth,
+                      );
+                    },
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -199,6 +187,90 @@ class _SecondaryBtn extends StatelessWidget {
             border: Border.all(color: colors.border),
           ),
           child: Text(label, style: TextStyle(color: colors.accent, fontWeight: FontWeight.w700)),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoutineDayCard extends StatefulWidget {
+  final AppColors colors;
+  final RoutineDay day;
+  final List<String> names;
+  final VoidCallback onTap;
+  final double width;
+
+  const _RoutineDayCard({
+    required this.colors,
+    required this.day,
+    required this.names,
+    required this.onTap,
+    this.width = 170,
+  });
+
+  @override
+  State<_RoutineDayCard> createState() => _RoutineDayCardState();
+}
+
+class _RoutineDayCardState extends State<_RoutineDayCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final fontSize = (widget.width * 0.094).clamp(13.0, 17.0);
+    final subFontSize = (widget.width * 0.076).clamp(11.0, 14.0);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Material(
+          color: widget.colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(16),
+            splashColor: widget.colors.accent.withValues(alpha: 0.12),
+            highlightColor: widget.colors.accent.withValues(alpha: 0.06),
+            child: Container(
+              width: widget.width,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: widget.colors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.day.name,
+                    style: TextStyle(color: widget.colors.textPrimary, fontSize: fontSize, fontWeight: FontWeight.w800),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  ...widget.names.take(3).map(
+                        (n) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '• $n',
+                            style: TextStyle(color: widget.colors.textSecondary, fontSize: subFontSize),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                  const Spacer(),
+                  Text('Last: not yet', style: TextStyle(color: widget.colors.textMuted, fontSize: subFontSize - 1)),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

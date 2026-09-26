@@ -16,6 +16,7 @@ class _MeasureTabState extends State<MeasureTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
@@ -38,28 +39,28 @@ class _MeasureTabState extends State<MeasureTab> {
             children: [
               Row(
                 children: [
-                  const Expanded(
-                    child: Text('BODY WEIGHT', style: TextStyle(color: Color(0xFF6B6B75), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                  Expanded(
+                    child: Text('BODY WEIGHT', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   ),
                   Container(
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                      color: colors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.monitor_weight_outlined, color: Color(0xFF2563EB), size: 18),
+                    child: Icon(Icons.monitor_weight_outlined, color: colors.accent, size: 18),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              const Text('175 lb', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+              Text('175 lb', style: TextStyle(color: colors.textPrimary, fontSize: 32, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              const Row(
+              Row(
                 children: [
-                  DeltaBadge(text: '-3.0 lb', down: true),
-                  SizedBox(width: 8),
-                  Text('vs 1Y ago', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                  const DeltaBadge(text: '-3.0 lb', down: true),
+                  const SizedBox(width: 8),
+                  Text('vs 1Y ago', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -81,7 +82,7 @@ class _MeasureTabState extends State<MeasureTab> {
                           reservedSize: 28,
                           getTitlesWidget: (v, m) {
                             if (v == 178 || v == 175) {
-                              return Text(v.toInt().toString(), style: const TextStyle(color: Color(0xFF6B6B75), fontSize: 10));
+                              return Text(v.toInt().toString(), style: TextStyle(color: colors.textMuted, fontSize: 10));
                             }
                             return const SizedBox.shrink();
                           },
@@ -100,7 +101,7 @@ class _MeasureTabState extends State<MeasureTab> {
                           FlSpot(5, 175),
                         ],
                         isCurved: true,
-                        color: const Color(0xFF2563EB),
+                        color: colors.accent,
                         barWidth: 2.5,
                         dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
@@ -109,8 +110,8 @@ class _MeasureTabState extends State<MeasureTab> {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              const Color(0xFF2563EB).withValues(alpha: 0.35),
-                              const Color(0xFF2563EB).withValues(alpha: 0.0),
+                              colors.accent.withValues(alpha: 0.35),
+                              colors.accent.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
@@ -138,28 +139,28 @@ class _MeasureTabState extends State<MeasureTab> {
                       child: CircularProgressIndicator(
                         value: 0.82,
                         strokeWidth: 8,
-                        backgroundColor: const Color(0xFF2A2A32),
+                        backgroundColor: colors.border,
                         color: const Color(0xFFF59E0B),
                       ),
                     ),
-                    const Text('82%', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    Text('82%', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('BODY FAT', style: TextStyle(color: Color(0xFF6B6B75), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                    SizedBox(height: 4),
-                    Text('18.2%', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
-                    SizedBox(height: 6),
+                    Text('BODY FAT', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    const SizedBox(height: 4),
+                    Text('18.2%', style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        DeltaBadge(text: '-0.8%', down: true),
-                        SizedBox(width: 8),
-                        Text('this month', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+                        const DeltaBadge(text: '-0.8%', down: true),
+                        const SizedBox(width: 8),
+                        Text('this month', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ],
@@ -169,11 +170,11 @@ class _MeasureTabState extends State<MeasureTab> {
           ),
         ),
         const SizedBox(height: 18),
-        const Row(
+        Row(
           children: [
-            Text('Measurements', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
-            Spacer(),
-            Text('inches', style: TextStyle(color: Color(0xFF9B9BA5), fontSize: 12)),
+            Text('Measurements', style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text('inches', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
           ],
         ),
         const SizedBox(height: 10),
@@ -182,15 +183,16 @@ class _MeasureTabState extends State<MeasureTab> {
           child: Column(
             children: [
               _MeasureRow(
-                iconColor: const Color(0xFF2563EB),
+                iconColor: colors.accent,
                 label: 'Chest',
                 value: '42.0"',
                 delta: '+0.5"',
                 deltaUp: true,
                 spark: const [41.5, 41.6, 41.7, 41.8, 41.9, 42.0],
                 sparkEnd: '41.5"',
+                sparkColor: colors.accent,
               ),
-              const Divider(height: 1, color: Color(0xFF26262E)),
+              Divider(height: 1, color: colors.border),
               _MeasureRow(
                 iconColor: const Color(0xFF22C55E),
                 label: 'Waist',
@@ -227,11 +229,12 @@ class _MeasureRow extends StatelessWidget {
     required this.deltaUp,
     required this.spark,
     required this.sparkEnd,
-    this.sparkColor = const Color(0xFF2563EB),
+    required this.sparkColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Padding(
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -250,22 +253,22 @@ class _MeasureRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(label, style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                    Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: (deltaUp ? const Color(0xFF2563EB) : const Color(0xFF22C55E)).withValues(alpha: 0.15),
+                        color: (deltaUp ? colors.accent : colors.success).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         delta,
                         style: TextStyle(
-                          color: deltaUp ? const Color(0xFF60A5FA) : const Color(0xFF4ADE80),
+                          color: deltaUp ? const Color(0xFF60A5FA) : colors.success,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),

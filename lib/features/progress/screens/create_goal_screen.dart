@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
 enum GoalType { strength, bodyComp, consistency, muscleGain }
 
@@ -25,8 +26,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -36,8 +38,8 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                 children: [
                   TextButton.icon(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.chevron_left, color: Colors.black87, size: 26),
-                    label: const Text('Back', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                    icon: Icon(Icons.chevron_left, color: colors.textPrimary, size: 26),
+                    label: Text('Back', style: TextStyle(color: colors.textPrimary, fontSize: 16)),
                   ),
                 ],
               ),
@@ -46,12 +48,12 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                 children: [
-                  const Text(
+                  Text(
                     'New Goal',
-                    style: TextStyle(color: Colors.black87, fontSize: 28, fontWeight: FontWeight.w800),
+                    style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
-                  const Text('GOAL TYPE', style: TextStyle(color: Color(0xFF8E8E98), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                  Text('GOAL TYPE', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   const SizedBox(height: 10),
                   GridView.count(
                     crossAxisCount: 2,
@@ -88,23 +90,23 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  ..._fieldsForType(),
+                  ..._fieldsForType(context),
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F0FF),
+                      color: colors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline, color: Color(0xFF2563EB), size: 18),
-                        SizedBox(width: 8),
+                        Icon(Icons.info_outline, color: colors.accent, size: 18),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Progress will be automatically tracked based on your workout logs and body measurements.',
-                            style: TextStyle(color: Color(0xFF5C5C66), fontSize: 13, height: 1.35),
+                            style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.35),
                           ),
                         ),
                       ],
@@ -117,8 +119,8 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
-                        foregroundColor: Colors.white,
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.onAccent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: const Text('Create goal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -133,35 +135,36 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
-  List<Widget> _fieldsForType() {
+  List<Widget> _fieldsForType(BuildContext context) {
+    final colors = progressColors(context);
     switch (_type) {
       case GoalType.strength:
         return [
-          _label('EXERCISE'),
-          _selectorField(_exercise, onTap: () {}),
+          _label(context, 'EXERCISE'),
+          _selectorField(context, _exercise, onTap: () {}),
           const SizedBox(height: 14),
-          _label('TARGET WEIGHT (LB)'),
-          _inputField(_targetCtrl),
+          _label(context, 'TARGET WEIGHT (LB)'),
+          _inputField(context, _targetCtrl),
           const SizedBox(height: 14),
-          _label('TARGET DATE'),
-          _selectorField(DateFormat('d MMM yyyy').format(_date), onTap: _pickDate),
+          _label(context, 'TARGET DATE'),
+          _selectorField(context, DateFormat('d MMM yyyy').format(_date), onTap: _pickDate),
         ];
       case GoalType.bodyComp:
         return [
-          _label('METRIC'),
+          _label(context, 'METRIC'),
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: _metricPill('Body fat', _bodyMetric == 0, () => setState(() => _bodyMetric = 0)),
+                  child: _metricPill(context, 'Body fat', _bodyMetric == 0, () => setState(() => _bodyMetric = 0)),
                 ),
                 Expanded(
-                  child: _metricPill('Weight', _bodyMetric == 1, () => setState(() => _bodyMetric = 1)),
+                  child: _metricPill(context, 'Weight', _bodyMetric == 1, () => setState(() => _bodyMetric = 1)),
                 ),
               ],
             ),
@@ -169,47 +172,48 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           const SizedBox(height: 8),
           Text(
             _bodyMetric == 0 ? 'Starting point: 16.4%' : 'Starting point: 175 lb',
-            style: const TextStyle(color: Color(0xFF8E8E98), fontSize: 12),
+            style: TextStyle(color: colors.textMuted, fontSize: 12),
           ),
           const SizedBox(height: 14),
-          _label(_bodyMetric == 0 ? 'TARGET BODY FAT (%)' : 'TARGET WEIGHT (LB)'),
-          _inputField(_targetCtrl),
+          _label(context, _bodyMetric == 0 ? 'TARGET BODY FAT (%)' : 'TARGET WEIGHT (LB)'),
+          _inputField(context, _targetCtrl),
           const SizedBox(height: 14),
-          _label('TARGET DATE'),
-          _selectorField(DateFormat('d MMM yyyy').format(_date), onTap: _pickDate),
+          _label(context, 'TARGET DATE'),
+          _selectorField(context, DateFormat('d MMM yyyy').format(_date), onTap: _pickDate),
         ];
       case GoalType.consistency:
         return [
-          _label('SESSIONS PER WEEK'),
-          _inputField(_targetCtrl),
+          _label(context, 'SESSIONS PER WEEK'),
+          _inputField(context, _targetCtrl),
         ];
       case GoalType.muscleGain:
         return [
-          const Text('Baseline lean mass: 151 lb', style: TextStyle(color: Color(0xFF8E8E98), fontSize: 12)),
+          Text('Baseline lean mass: 151 lb', style: TextStyle(color: colors.textMuted, fontSize: 12)),
           const SizedBox(height: 14),
-          _label('TARGET LEAN MASS (LB)'),
-          _inputField(_targetCtrl),
+          _label(context, 'TARGET LEAN MASS (LB)'),
+          _inputField(context, _targetCtrl),
           const SizedBox(height: 14),
-          _label('TARGET DATE'),
-          _selectorField(DateFormat('d MMM yyyy').format(_date), onTap: _pickDate),
+          _label(context, 'TARGET DATE'),
+          _selectorField(context, DateFormat('d MMM yyyy').format(_date), onTap: _pickDate),
         ];
     }
   }
 
-  Widget _metricPill(String label, bool selected, VoidCallback onTap) {
+  Widget _metricPill(BuildContext context, String label, bool selected, VoidCallback onTap) {
+    final colors = progressColors(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF2563EB) : Colors.white,
+          color: selected ? colors.accent : colors.surface,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: selected ? Colors.white : const Color(0xFF5C5C66),
+            color: selected ? colors.onAccent : colors.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -217,38 +221,43 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: const TextStyle(color: Color(0xFF8E8E98), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-      );
+  Widget _label(BuildContext context, String text) {
+    final colors = progressColors(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(text, style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+    );
+  }
 
-  Widget _inputField(TextEditingController ctrl) {
+  Widget _inputField(BuildContext context, TextEditingController ctrl) {
+    final colors = progressColors(context);
     return TextField(
       controller: ctrl,
       keyboardType: TextInputType.number,
-      style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w600),
+      style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: colors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
   }
 
-  Widget _selectorField(String value, {required VoidCallback onTap}) {
+  Widget _selectorField(BuildContext context, String value, {required VoidCallback onTap}) {
+    final colors = progressColors(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Expanded(child: Text(value, style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w600))),
-            const Icon(Icons.chevron_right, color: Color(0xFF2563EB)),
+            Expanded(child: Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600))),
+            Icon(Icons.chevron_right, color: colors.accent),
           ],
         ),
       ),
@@ -281,13 +290,14 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE8F0FF) : Colors.white,
+          color: selected ? colors.accent.withValues(alpha: 0.12) : colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: selected ? const Color(0xFF2563EB) : Colors.transparent, width: 1.5),
+          border: Border.all(color: selected ? colors.accent : Colors.transparent, width: 1.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -296,16 +306,16 @@ class _TypeCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: selected ? const Color(0xFFD6E4FF) : const Color(0xFFF0F0F3),
+                color: selected ? colors.accent.withValues(alpha: 0.2) : colors.background,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: selected ? const Color(0xFF2563EB) : const Color(0xFF8E8E98)),
+              child: Icon(icon, color: selected ? colors.accent : colors.textMuted),
             ),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                color: selected ? const Color(0xFF2563EB) : const Color(0xFF5C5C66),
+                color: selected ? colors.accent : colors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),

@@ -2,7 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 
@@ -12,6 +14,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
+    final profile = ref.watch(cachedProfileProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -19,7 +22,7 @@ class HomeScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
-            _Header(colors: colors),
+            _Header(colors: colors, profile: profile),
             const SizedBox(height: 18),
             _UpNextCard(colors: colors, onContinue: () => context.go('/workout')),
             const SizedBox(height: 22),
@@ -40,10 +43,15 @@ class HomeScreen extends ConsumerWidget {
 
 class _Header extends StatelessWidget {
   final AppColors colors;
-  const _Header({required this.colors});
+  final CachedProfile? profile;
+  const _Header({required this.colors, this.profile});
 
   @override
   Widget build(BuildContext context) {
+    final name = profile?.displayName ?? 'Athlete';
+    final initial = profile?.initial ?? 'A';
+    final dateLabel = DateFormat('EEEE, d MMM').format(DateTime.now());
+
     return Row(
       children: [
         Container(
@@ -51,16 +59,16 @@ class _Header extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
           alignment: Alignment.center,
-          child: Text('D', style: TextStyle(color: colors.onAccent, fontSize: 22, fontWeight: FontWeight.w800)),
+          child: Text(initial, style: TextStyle(color: colors.onAccent, fontSize: 22, fontWeight: FontWeight.w800)),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Saturday, 5 Sept', style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(dateLabel, style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
-              Text('Ready, demo_athlete?', style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+              Text('Ready, $name?', style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
             ],
           ),
         ),

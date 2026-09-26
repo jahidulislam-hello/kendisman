@@ -1,28 +1,59 @@
 import 'dart:async';
 
+import 'package:fitzella/core/providers/auth_provider.dart';
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// First launch screen — branded Fitzella splash.
-/// After a short delay, navigates to the welcome (01) screen.
-class SplashScreen extends StatefulWidget {
+/// After a short delay:
+/// - signed in + onboarded → /home
+/// - signed in + not onboarded → /onboarding/welcome
+/// - otherwise → /welcome (intro → sign in)
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    _timer = Timer(const Duration(milliseconds: 1800), _navigateNext);
+  }
+
+  Future<void> _navigateNext() async {
+    if (!mounted) return;
+
+    // Wait briefly if auth profile is still loading.
+    var auth = ref.read(authNotifierProvider);
+    if (auth.loading && auth.session != null) {
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
+        auth = ref.read(authNotifierProvider);
+        if (!auth.loading) break;
+      }
+    }
+
+    final cached = ref.read(cachedProfileProvider) ??
+        ref.read(profilePrefsServiceProvider).load();
+    final session = auth.session;
+    final onboarded =
+        auth.profile?.onboarded == true || cached?.onboarded == true;
+
+    if (!mounted) return;
+    if (session != null && !auth.pendingPasswordRecovery) {
+      context.go(onboarded ? '/home' : '/onboarding/welcome');
+    } else {
       context.go('/welcome');
-    });
+    }
   }
 
   @override
@@ -47,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 const _AppIcon(),
                 const SizedBox(height: 56),
                 Text(
-                  'Welcome to Fitzella',
+                  'Fitzella',
                   textAlign: TextAlign.center,
                   style: AppTypography.sheetTitle.copyWith(
                     fontSize: 24,
@@ -57,8 +88,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Discover new features, personalize your experience, '
-                  'and start your fitness journey with us today.',
+                  'Track workouts. Build strength.',
                   textAlign: TextAlign.center,
                   style: AppTypography.secondary.copyWith(
                     color: colors.textSecondary,
@@ -96,9 +126,9 @@ class _AppIcon extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        'fitzella',
+        'Fitzella',
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: AppWeight.extraBold,
           color: colors.accent,
           letterSpacing: -0.4,

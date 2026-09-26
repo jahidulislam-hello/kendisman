@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:fitzella/core/providers/auth_provider.dart';
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/features/auth/widgets/buttons.dart';
@@ -17,12 +18,29 @@ void _authLog(String message, {Object? error}) {
   developer.log(text, name: 'fitzella.auth', error: error);
 }
 
-void _showAuthError(String message) {
-  _authLog('ERROR: $message');
-}
-
-void _showAuthInfo(String message) {
-  _authLog(message);
+void _showAuthSnack(
+  BuildContext context, {
+  required String message,
+  bool isError = false,
+}) {
+  if (isError) {
+    _authLog('ERROR: $message');
+  } else {
+    _authLog(message);
+  }
+  if (!context.mounted) return;
+  final colors = Theme.of(context).colorScheme;
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(color: isError ? colors.onError : colors.onSurface),
+        ),
+        backgroundColor: isError ? colors.error : null,
+      ),
+    );
 }
 
 /// Base auth screen with common layout
@@ -30,27 +48,61 @@ class AuthScreen extends ConsumerWidget {
   final Widget child;
   final String? title;
   final String? subtitle;
+  final bool showBack;
 
   const AuthScreen({
     super.key,
     required this.child,
     this.title,
     this.subtitle,
+    this.showBack = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
       backgroundColor: colors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl + bottomInset * 0.15,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (showBack)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/welcome');
+                      }
+                    },
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: colors.textPrimary, size: 20),
+                  ),
+                ),
               if (title != null) ...[
+                Text(
+                  'Fitzella',
+                  style: AppTypography.small.copyWith(
+                    color: colors.accent,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const VGap(AppSpacing.sm),
                 Text(title!, style: AppTypography.screenTitle.copyWith(color: colors.textPrimary)),
                 if (subtitle != null) ...[
                   const VGap(AppSpacing.xs),
@@ -60,6 +112,7 @@ class AuthScreen extends ConsumerWidget {
               ],
               Expanded(
                 child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   child: child,
                 ),
               ),
@@ -105,11 +158,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     result.when(
       success: (_) {
-        _showAuthInfo('Sign in success → /home');
-        context.go('/home');
+        final auth = ref.read(authNotifierProvider);
+        final cached = ref.read(cachedProfileProvider);
+        final onboarded =
+            auth.profile?.onboarded == true || cached?.onboarded == true;
+        _showAuthSnack(
+          context,
+          message: onboarded
+              ? 'Welcome back to Fitzella!'
+              : 'Signed in — let\'s finish your Fitzella setup.',
+        );
+        context.go(onboarded ? '/home' : '/onboarding/welcome');
       },
-      error: _showAuthError,
+      error: (message) => _showAuthSnack(context, message: message, isError: true),
     );
+  }
+
+  void _socialComingSoon() {
+    _showAuthSnack(context, message: 'Apple & Google sign-in coming soon to Fitzella.');
   }
 
   @override
@@ -118,7 +184,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return AuthScreen(
       title: 'Welcome Back',
-      subtitle: 'Sign in to continue your fitness journey',
+      subtitle: 'Sign in to continue your Fitzella fitness journey',
+      showBack: true,
       child: Form(
         key: _formKey,
         child: Column(
@@ -130,9 +197,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Email is required';
-                if (!value.contains('@')) return 'Enter a valid email';
+                if (!value.contains('@') || !value.contains('.')) {
+                  return 'Enter a valid email';
+                }
                 return null;
               },
             ),
@@ -143,6 +213,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
               onFieldSubmitted: (_) => _handleLogin(),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -189,15 +260,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: SecondaryButton(
                     title: 'Apple',
                     leading: const Icon(Icons.apple, size: 20),
-                    onPressed: () {},
+                    onPressed: _socialComingSoon,
                   ),
                 ),
                 const HGap(AppSpacing.md),
                 Expanded(
                   child: SecondaryButton(
                     title: 'Google',
-                    leading: Image.network('https://www.google.com/favicon.ico', width: 20, height: 20),
-                    onPressed: () {},
+                    leading: Image.network(
+                      'https://www.google.com/favicon.ico',
+                      width: 20,
+                      height: 20,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 22),
+                    ),
+                    onPressed: _socialComingSoon,
                   ),
                 ),
               ],
@@ -249,12 +325,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_termsAccepted) {
-      _showAuthError('Please accept the terms and conditions');
+      _showAuthSnack(
+        context,
+        message: 'Please accept the Terms of Service and Privacy Policy',
+        isError: true,
+      );
       return;
     }
     setState(() => _loading = true);
     final email = _emailController.text.trim();
-    _showAuthInfo('Sign up started for $email');
+    _authLog('Sign up started for $email');
     final result = await ref.read(authNotifierProvider.notifier).signUp(
           email,
           _passwordController.text,
@@ -265,15 +345,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     result.when(
       success: (needsVerification) {
         if (needsVerification) {
-          _showAuthInfo('Sign up needs email confirmation → OTP screen');
+          _showAuthSnack(
+            context,
+            message: 'Check your email for a Fitzella confirmation code.',
+          );
           context.go('/auth/verify-otp?email=${Uri.encodeComponent(email)}&purpose=signup');
         } else {
-          _showAuthInfo('Sign up complete (session ready) → onboarding');
+          _showAuthSnack(context, message: 'Welcome to Fitzella!');
           context.go('/onboarding/welcome');
         }
       },
-      error: _showAuthError,
+      error: (message) => _showAuthSnack(context, message: message, isError: true),
     );
+  }
+
+  void _socialComingSoon() {
+    _showAuthSnack(context, message: 'Apple & Google sign-in coming soon to Fitzella.');
   }
 
   @override
@@ -282,7 +369,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     return AuthScreen(
       title: 'Create Account',
-      subtitle: 'Start your fitness journey today',
+      subtitle: 'Join Fitzella and start your fitness journey today',
+      showBack: true,
       child: Form(
         key: _formKey,
         child: Column(
@@ -294,9 +382,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Email is required';
-                if (!value.contains('@')) return 'Enter a valid email';
+                if (!value.contains('@') || !value.contains('.')) {
+                  return 'Enter a valid email';
+                }
                 return null;
               },
             ),
@@ -307,6 +398,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.newPassword],
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -327,6 +419,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               controller: _confirmController,
               obscureText: _obscureConfirm,
               textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
               onFieldSubmitted: (_) => _handleSignup(),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -354,7 +447,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 const HGap(AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    'I agree to the Terms of Service and Privacy Policy',
+                    'I agree to the Fitzella Terms of Service and Privacy Policy',
                     style: AppTypography.small.copyWith(color: colors.textSecondary),
                   ),
                 ),
@@ -384,15 +477,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   child: SecondaryButton(
                     title: 'Apple',
                     leading: const Icon(Icons.apple, size: 20),
-                    onPressed: () {},
+                    onPressed: _socialComingSoon,
                   ),
                 ),
                 const HGap(AppSpacing.md),
                 Expanded(
                   child: SecondaryButton(
                     title: 'Google',
-                    leading: Image.network('https://www.google.com/favicon.ico', width: 20, height: 20),
-                    onPressed: () {},
+                    leading: Image.network(
+                      'https://www.google.com/favicon.ico',
+                      width: 20,
+                      height: 20,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 22),
+                    ),
+                    onPressed: _socialComingSoon,
                   ),
                 ),
               ],
@@ -427,7 +525,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _loading = false;
-  bool _sent = false;
 
   @override
   void dispose() {
@@ -445,10 +542,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     result.when(
       success: (_) {
-        _showAuthInfo('Password reset email requested for $email');
-        setState(() => _sent = true);
+        _showAuthSnack(
+          context,
+          message: 'We sent a Fitzella reset code to $email',
+        );
+        context.go(
+          '/auth/verify-otp?email=${Uri.encodeComponent(email)}&purpose=recovery',
+        );
       },
-      error: _showAuthError,
+      error: (message) => _showAuthSnack(context, message: message, isError: true),
     );
   }
 
@@ -456,33 +558,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
 
-    if (_sent) {
-      return AuthScreen(
-        title: 'Check Your Email',
-        subtitle: 'We\'ve sent a password reset link to ${_emailController.text}',
-        child: Column(
-          children: [
-            const VGap(AppSpacing.xl),
-            Icon(Icons.mark_email_read_outlined, size: 64, color: colors.accent),
-            const VGap(AppSpacing.lg),
-            Text(
-              'Check your inbox (and spam folder) for a password reset link.',
-              style: AppTypography.body.copyWith(color: colors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const VGap(AppSpacing.xl),
-            PrimaryButton(
-              title: 'Back to Sign In',
-              onPressed: () => context.go('/auth/login'),
-            ),
-          ],
-        ),
-      );
-    }
-
     return AuthScreen(
       title: 'Forgot Password?',
-      subtitle: 'Enter your email and we\'ll send you a reset link',
+      subtitle: 'Enter your email and we\'ll send you a Fitzella reset code',
+      showBack: true,
       child: Form(
         key: _formKey,
         child: Column(
@@ -494,16 +573,19 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.email],
               onFieldSubmitted: (_) => _handleSubmit(),
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Email is required';
-                if (!value.contains('@')) return 'Enter a valid email';
+                if (!value.contains('@') || !value.contains('.')) {
+                  return 'Enter a valid email';
+                }
                 return null;
               },
             ),
             const VGap(AppSpacing.lg),
             PrimaryButton(
-              title: 'Send Reset Link',
+              title: 'Send Reset Code',
               loading: _loading,
               onPressed: _handleSubmit,
             ),
@@ -559,10 +641,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     result.when(
       success: (_) {
-        _showAuthInfo('Password reset complete → login');
+        _showAuthSnack(context, message: 'Password updated. Sign in to Fitzella.');
         context.go('/auth/login');
       },
-      error: _showAuthError,
+      error: (message) => _showAuthSnack(context, message: message, isError: true),
     );
   }
 
@@ -572,7 +654,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     return AuthScreen(
       title: 'Set New Password',
-      subtitle: 'Your new password must be different from previous ones',
+      subtitle: 'Choose a new password for your Fitzella account',
+      showBack: true,
       child: Form(
         key: _formKey,
         child: Column(
@@ -584,6 +667,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.newPassword],
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -604,6 +688,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               controller: _confirmController,
               obscureText: _obscureConfirm,
               textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
               onFieldSubmitted: (_) => _handleReset(),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -690,9 +775,16 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
 
   Future<void> _handleVerify() async {
     final code = _controllers.map((c) => c.text).join();
-    if (code.length != 6) return;
+    if (code.length != 6) {
+      _showAuthSnack(context, message: 'Enter the full 6-digit code', isError: true);
+      return;
+    }
     if (widget.email.isEmpty) {
-      _showAuthError('Missing email. Please sign up again.');
+      _showAuthSnack(
+        context,
+        message: 'Missing email. Please start again from sign up.',
+        isError: true,
+      );
       return;
     }
 
@@ -707,21 +799,21 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     result.when(
       success: (_) {
         if (widget.purpose == 'recovery') {
-          _showAuthInfo('Recovery OTP verified → reset password');
+          _showAuthSnack(context, message: 'Code verified. Set your new password.');
           context.go('/auth/reset-password');
         } else {
-          _showAuthInfo('Signup OTP verified → onboarding');
+          _showAuthSnack(context, message: 'Email confirmed. Welcome to Fitzella!');
           context.go('/onboarding/welcome');
         }
       },
-      error: _showAuthError,
+      error: (message) => _showAuthSnack(context, message: message, isError: true),
     );
   }
 
   Future<void> _handleResend() async {
     if (widget.email.isEmpty || _resendCooldown > 0) return;
     setState(() => _loading = true);
-    _showAuthInfo('Resend email requested for ${widget.email}');
+    _authLog('Resend email requested for ${widget.email}');
     final result = widget.purpose == 'recovery'
         ? await ref.read(authNotifierProvider.notifier).sendPasswordResetOtp(widget.email)
         : await ref.read(authNotifierProvider.notifier).resendSignupOtp(widget.email);
@@ -731,13 +823,13 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     result.when(
       success: (_) {
         _startResendCooldown(30);
-        _showAuthInfo('Email sent. Check inbox and spam.');
+        _showAuthSnack(context, message: 'Email sent. Check inbox and spam.');
       },
       error: (message) {
         if (message.toLowerCase().contains('rate limit')) {
           _startResendCooldown(60);
         }
-        _showAuthError(message);
+        _showAuthSnack(context, message: message, isError: true);
       },
     );
   }
@@ -756,17 +848,23 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
+    final isRecovery = widget.purpose == 'recovery';
 
     return AuthScreen(
-      title: 'Confirm Your Email',
+      title: isRecovery ? 'Reset Your Password' : 'Confirm Your Email',
       subtitle: widget.email.isEmpty
-          ? 'Open the confirmation link we emailed you, or enter the 6-digit code if your email includes one.'
-          : 'We sent a confirmation link to ${widget.email}. Tap Confirm in that email to finish, or enter a 6-digit code if provided.',
+          ? 'Open the confirmation email from Fitzella, or enter the 6-digit code if included.'
+          : isRecovery
+              ? 'We sent a reset code to ${widget.email}. Enter the 6-digit code below.'
+              : 'We sent a confirmation to ${widget.email}. Enter the 6-digit code, or tap Confirm in the email.',
+      showBack: true,
       child: Column(
         children: [
           const VGap(AppSpacing.lg),
           Text(
-            'After you tap “Confirm email address” in your inbox, this app will open automatically.',
+            isRecovery
+                ? 'Enter the code from your Fitzella email to continue.'
+                : 'After you tap “Confirm email address” in your inbox, Fitzella will open automatically.',
             textAlign: TextAlign.center,
             style: AppTypography.secondary.copyWith(color: colors.textSecondary),
           ),

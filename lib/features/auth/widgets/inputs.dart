@@ -33,6 +33,7 @@ class AppTextField extends ConsumerStatefulWidget {
   final FormFieldValidator<String>? validator;
   final TextCapitalization textCapitalization;
   final AutovalidateMode autovalidateMode;
+  final Iterable<String>? autofillHints;
 
   const AppTextField({
     super.key,
@@ -59,6 +60,7 @@ class AppTextField extends ConsumerStatefulWidget {
     this.validator,
     this.textCapitalization = TextCapitalization.none,
     this.autovalidateMode = AutovalidateMode.onUserInteraction,
+    this.autofillHints,
   });
 
   @override
@@ -117,6 +119,7 @@ class _AppTextFieldState extends ConsumerState<AppTextField> {
           validator: widget.validator,
           textCapitalization: widget.textCapitalization,
           autovalidateMode: widget.autovalidateMode,
+          autofillHints: widget.autofillHints,
           style: AppTypography.body.copyWith(color: colors.textPrimary),
           decoration: InputDecoration(
             hintText: widget.hint,

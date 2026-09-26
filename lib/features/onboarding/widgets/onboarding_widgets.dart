@@ -68,7 +68,7 @@ class OnboardingBackButton extends StatelessWidget {
 
 class OnboardingStepHeader extends StatelessWidget {
   final AppColors colors;
-  final IconData icon;
+  final IconData? icon;
   final int step;
   final String title;
   final String? subtitle;
@@ -76,7 +76,7 @@ class OnboardingStepHeader extends StatelessWidget {
   const OnboardingStepHeader({
     super.key,
     required this.colors,
-    required this.icon,
+    this.icon,
     required this.step,
     required this.title,
     this.subtitle,
@@ -87,27 +87,6 @@ class OnboardingStepHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: kOnboardingBlue.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kOnboardingBlue.withValues(alpha: 0.35)),
-          ),
-          child: Icon(icon, color: kOnboardingBlue, size: 22),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          'STEP $step OF 10',
-          style: TextStyle(
-            color: colors.textMuted,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 8),
         Text(
           title,
           style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800, height: 1.15),

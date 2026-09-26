@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 
+/// Progress feature colors that follow the app Appearance setting.
+AppColors progressColors(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark
+      ? AppColors.dark
+      : AppColors.light;
+}
+
 /// Segmented pill tab bar used across Progress screens.
 class ProgressSegmentedTabs extends StatelessWidget {
   final List<String> tabs;
@@ -18,11 +25,13 @@ class ProgressSegmentedTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: const Color(0xFF17171C),
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border, width: 0.5),
       ),
       child: Row(
         children: List.generate(tabs.length, (i) {
@@ -34,7 +43,7 @@ class ProgressSegmentedTabs extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFF2563EB) : Colors.transparent,
+                  color: selected ? colors.accent : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -43,7 +52,7 @@ class ProgressSegmentedTabs extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : const Color(0xFF9B9BA5),
+                    color: selected ? colors.onAccent : colors.textSecondary,
                   ),
                 ),
               ),
@@ -71,16 +80,17 @@ class ProgressChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: padding,
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF2563EB) : const Color(0xFF1C1C22),
+          color: selected ? colors.accent : colors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF2563EB) : const Color(0xFF2A2A32),
+            color: selected ? colors.accent : colors.border,
           ),
         ),
         child: Text(
@@ -88,7 +98,7 @@ class ProgressChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : const Color(0xFF9B9BA5),
+            color: selected ? colors.onAccent : colors.textSecondary,
           ),
         ),
       ),
@@ -102,13 +112,14 @@ class ProgressFilterLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
-        color: Color(0xFF6B6B75),
+        color: colors.textMuted,
       ),
     );
   }
@@ -130,6 +141,7 @@ class ProgressBackHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -144,18 +156,18 @@ class ProgressBackHeader extends StatelessWidget {
                 decoration: showBackText
                     ? null
                     : BoxDecoration(
-                        color: const Color(0xFF1C1C22),
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(20),
                       ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.chevron_left, color: Colors.white, size: 26),
+                    Icon(Icons.chevron_left, color: colors.textPrimary, size: 26),
                     if (showBackText)
-                      const Text(
+                      Text(
                         'Back',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: colors.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -168,8 +180,8 @@ class ProgressBackHeader extends StatelessWidget {
               const Spacer(),
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colors.textPrimary,
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
@@ -186,7 +198,7 @@ class ProgressBackHeader extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             title,
-            style: AppTypography.screenTitle.copyWith(color: Colors.white),
+            style: AppTypography.screenTitle.copyWith(color: colors.textPrimary),
           ),
         ],
       ],
@@ -210,8 +222,9 @@ class ProgressNavCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     return Material(
-      color: const Color(0xFF17171C),
+      color: colors.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -220,7 +233,7 @@ class ProgressNavCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF26262E)),
+            border: Border.all(color: colors.border),
           ),
           child: Row(
             children: [
@@ -228,10 +241,10 @@ class ProgressNavCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                  color: colors.accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
+                child: Icon(icon, color: colors.accent, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -240,8 +253,8 @@ class ProgressNavCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: colors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -249,15 +262,15 @@ class ProgressNavCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF9B9BA5),
+                      style: TextStyle(
+                        color: colors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFF6B6B75)),
+              Icon(Icons.chevron_right, color: colors.textMuted),
             ],
           ),
         ),
@@ -284,12 +297,13 @@ class ProgressSurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? const Color(0xFF17171C),
+        color: color ?? colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor ?? const Color(0xFF26262E)),
+        border: Border.all(color: borderColor ?? colors.border),
       ),
       child: child,
     );
@@ -307,22 +321,24 @@ class ProgressSurfaceCard extends StatelessWidget {
 
 class DeltaBadge extends StatelessWidget {
   final String text;
-  final Color color;
+  final Color? color;
   final bool down;
 
   const DeltaBadge({
     super.key,
     required this.text,
-    this.color = const Color(0xFF4ADE80),
+    this.color,
     this.down = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colors = progressColors(context);
+    final badgeColor = color ?? colors.success;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: badgeColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -331,13 +347,13 @@ class DeltaBadge extends StatelessWidget {
           Icon(
             down ? Icons.arrow_downward : Icons.arrow_upward,
             size: 12,
-            color: color,
+            color: badgeColor,
           ),
           const SizedBox(width: 2),
           Text(
             text,
             style: TextStyle(
-              color: color,
+              color: badgeColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),

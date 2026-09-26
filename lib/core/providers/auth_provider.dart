@@ -6,7 +6,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:fitzella/core/config/supabase_config.dart';
 import 'package:fitzella/core/models/profile/user_profile.dart';
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/services/supabase_service.dart';
+import 'package:fitzella/features/onboarding/onboarding_provider.dart';
 
 part 'auth_provider.g.dart';
 part 'auth_provider.freezed.dart';
@@ -42,6 +44,7 @@ class AuthNotifier extends _$AuthNotifier {
         state = state.copyWith(session: next, loading: true);
         _loadProfile(next.user.id);
       } else {
+        _clearLocalProfile();
         state = state.copyWith(
           session: null,
           profile: null,
@@ -92,16 +95,196 @@ class AuthNotifier extends _$AuthNotifier {
 
       final profile = UserProfile.fromJson(response);
       final hasProgram = await _checkHasProgram(userId);
+      final weightKg = await _latestWeightKg(userId);
 
       state = state.copyWith(
         profile: profile,
         hasProgram: hasProgram,
         loading: false,
       );
+      await _syncLocalProfile(profile, weightKg: weightKg);
     } catch (e) {
       _authDebug('_loadProfile failed', e);
-      // Keep session; profile can be completed later (e.g. onboarding).
+      // Keep session; fall back to SharedPreferences cache if present.
+      final cached = ref.read(profilePrefsServiceProvider).load();
+      if (cached != null) {
+        ref.read(cachedProfileProvider.notifier).state = cached;
+      }
       state = state.copyWith(loading: false);
+    }
+  }
+
+  Future<double?> _latestWeightKg(String userId) async {
+    try {
+      final row = await ref
+          .read(supabaseClientProvider)
+          .from('body_measurements')
+          .select('weight_lb')
+          .eq('user_id', userId)
+          .not('weight_lb', 'is', null)
+          .order('measured_on', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      final lb = (row?['weight_lb'] as num?)?.toDouble();
+      if (lb == null) return null;
+      return lb / 2.2046226218;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _syncLocalProfile(UserProfile profile, {double? weightKg}) async {
+    final prefs = ref.read(profilePrefsServiceProvider);
+    final existing = prefs.load();
+    final cached = CachedProfile(
+      userId: profile.id,
+      email: profile.email,
+      username: profile.username,
+      sex: profile.sex?.name,
+      dateOfBirth: profile.dateOfBirth,
+      heightCm: profile.heightCm?.toDouble(),
+      weightKg: weightKg ?? existing?.weightKg,
+      useMetric: profile.unitPreference == UnitPreference.kg,
+      goal: existing?.goal ?? profile.goal?.value,
+      equipment: existing?.equipment,
+      experience: existing?.experience ?? profile.experienceLevel?.name,
+      frequency: profile.trainingDaysPerWeek ?? existing?.frequency,
+      onboarded: profile.onboarded,
+      photoUrl: profile.photoUrl ?? existing?.photoUrl,
+    );
+    await prefs.save(cached);
+    ref.read(cachedProfileProvider.notifier).state = cached;
+  }
+
+  Future<void> _clearLocalProfile() async {
+    await ref.read(profilePrefsServiceProvider).clear();
+    ref.read(cachedProfileProvider.notifier).state = null;
+  }
+
+  /// Persist full profile-setup answers to Supabase + SharedPreferences.
+  Future<AuthResult> completeOnboarding(OnboardingState draft) async {
+    if (state.session == null) return AuthResult.error('Not signed in');
+
+    final userId = state.session!.user.id;
+    final email = state.session!.user.email ?? state.profile?.email ?? '';
+    final sex = _mapSex(draft.gender);
+    final goal = _mapGoal(draft.goal);
+    final experience = _mapExperience(draft.experience);
+    final dob =
+        '${draft.birthday.year.toString().padLeft(4, '0')}-'
+        '${draft.birthday.month.toString().padLeft(2, '0')}-'
+        '${draft.birthday.day.toString().padLeft(2, '0')}';
+    final heightCm = draft.heightCm.round();
+    final username = state.profile?.username ??
+        (email.contains('@') ? email.split('@').first : 'athlete');
+    final unit = draft.useMetric ? UnitPreference.kg : UnitPreference.lb;
+    final weightLb = draft.weightKg * 2.2046226218;
+
+    try {
+      await ref.read(supabaseClientProvider).from('users').update({
+        'username': username,
+        'sex': sex?.value,
+        'date_of_birth': dob,
+        'height_cm': heightCm,
+        'unit_preference': unit.value,
+        'goal': goal?.value,
+        'experience_level': experience?.name,
+        'training_days_per_week': draft.frequency,
+        'referral_source': draft.equipment,
+        'onboarded': true,
+      }).eq('id', userId);
+
+      await ref.read(supabaseClientProvider).from('body_measurements').insert({
+        'user_id': userId,
+        'measured_on': DateTime.now().toUtc().toIso8601String().split('T').first,
+        'weight_lb': double.parse(weightLb.toStringAsFixed(2)),
+      });
+
+      final cached = CachedProfile(
+        userId: userId,
+        email: email,
+        username: username,
+        sex: sex?.name,
+        dateOfBirth: dob,
+        heightCm: draft.heightCm,
+        weightKg: draft.weightKg,
+        useMetric: draft.useMetric,
+        goal: draft.goal,
+        equipment: draft.equipment,
+        experience: draft.experience,
+        frequency: draft.frequency,
+        onboarded: true,
+      );
+      await ref.read(profilePrefsServiceProvider).save(cached);
+      ref.read(cachedProfileProvider.notifier).state = cached;
+
+      await _loadProfile(userId);
+      return AuthResult.success();
+    } catch (e) {
+      _authDebug('completeOnboarding failed', e);
+      // Still keep local cache so screens work even if remote write fails.
+      final cached = CachedProfile(
+        userId: userId,
+        email: email,
+        username: username,
+        sex: sex?.name,
+        dateOfBirth: dob,
+        heightCm: draft.heightCm,
+        weightKg: draft.weightKg,
+        useMetric: draft.useMetric,
+        goal: draft.goal,
+        equipment: draft.equipment,
+        experience: draft.experience,
+        frequency: draft.frequency,
+        onboarded: true,
+      );
+      await ref.read(profilePrefsServiceProvider).save(cached);
+      ref.read(cachedProfileProvider.notifier).state = cached;
+      if (state.profile != null) {
+        state = state.copyWith(profile: state.profile!.copyWith(onboarded: true));
+      }
+      return AuthResult.error('Saved locally; cloud sync failed. Try again later.');
+    }
+  }
+
+  static UserSex? _mapSex(String? gender) {
+    switch ((gender ?? '').toLowerCase()) {
+      case 'male':
+        return UserSex.male;
+      case 'female':
+        return UserSex.female;
+      default:
+        return null;
+    }
+  }
+
+  static TrainingGoal? _mapGoal(String? goal) {
+    switch (goal) {
+      case 'Build Muscle':
+        return TrainingGoal.buildMuscle;
+      case 'Gain Strength':
+        return TrainingGoal.strength;
+      case 'Lose Weight':
+        return TrainingGoal.fatLoss;
+      case 'Tone Up':
+        return TrainingGoal.muscle;
+      case 'General Fitness':
+        return TrainingGoal.generalFitness;
+      default:
+        return goal == null ? null : TrainingGoal.generalFitness;
+    }
+  }
+
+  static ExperienceLevel? _mapExperience(String? experience) {
+    switch ((experience ?? '').toLowerCase()) {
+      case 'beginner':
+        return ExperienceLevel.beginner;
+      case 'intermediate':
+        return ExperienceLevel.intermediate;
+      case 'advanced':
+        return ExperienceLevel.advanced;
+      default:
+        return null;
     }
   }
 
@@ -284,13 +467,24 @@ class AuthNotifier extends _$AuthNotifier {
         await _loadProfile(response.session!.user.id);
         return AuthResult.success();
       }
-      return AuthResult.error('Invalid credentials');
+      return AuthResult.error('Invalid email or password');
     } on AuthException catch (e) {
       _authDebug('signIn AuthException', e.message);
+      final msg = e.message.toLowerCase();
+      if (msg.contains('email not confirmed') || msg.contains('not confirmed')) {
+        return AuthResult.error(
+          'Confirm your email first. Check your inbox for the Fitzella code.',
+        );
+      }
+      if (msg.contains('invalid login') ||
+          msg.contains('invalid credentials') ||
+          msg.contains('invalid_credentials')) {
+        return AuthResult.error('Invalid email or password');
+      }
       return AuthResult.error(e.message);
     } catch (e) {
       _authDebug('signIn failed', e);
-      return AuthResult.error('Failed to sign in');
+      return AuthResult.error('Failed to sign in. Please try again.');
     }
   }
 
@@ -346,6 +540,8 @@ class AuthNotifier extends _$AuthNotifier {
       
       if (response.user != null) {
         state = state.copyWith(pendingPasswordRecovery: false);
+        // Force a fresh sign-in with the new password.
+        await signOut();
         return AuthResult.success();
       }
       return AuthResult.error('Failed to set the new password');
@@ -362,6 +558,7 @@ class AuthNotifier extends _$AuthNotifier {
   }
 
   Future<void> signOut() async {
+    await _clearLocalProfile();
     await ref.read(supabaseClientProvider).auth.signOut();
   }
 
@@ -505,11 +702,93 @@ class AuthNotifier extends _$AuthNotifier {
       if (state.profile != null) {
         state = state.copyWith(profile: state.profile!.copyWith(photoUrl: photoUrl));
       }
+
+      final prefs = ref.read(profilePrefsServiceProvider);
+      final existing = prefs.load() ?? const CachedProfile();
+      final updated = existing.copyWith(
+        photoUrl: photoUrl,
+        clearPhotoUrl: photoUrl == null,
+      );
+      await prefs.save(updated);
+      ref.read(cachedProfileProvider.notifier).state = updated;
+
       return AuthResult.success();
     } catch (e) {
       return AuthResult.error('Failed to update photo');
     }
   }
+
+  /// Uploads [bytes] to the public `avatars` bucket and stores the public URL
+  /// on the user row. Path is always `{userId}/avatar.<ext>` so re-uploads
+  /// overwrite the previous object (upsert).
+  Future<AuthResult> uploadProfilePhoto(
+    Uint8List bytes, {
+    String fileName = 'avatar.jpg',
+  }) async {
+    if (state.session == null) return AuthResult.error('Not signed in');
+
+    try {
+      final userId = state.session!.user.id;
+      final ext = _avatarExtension(fileName);
+      final path = '$userId/avatar.$ext';
+      final client = ref.read(supabaseClientProvider);
+
+      await client.storage.from('avatars').uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _avatarContentType(ext),
+              upsert: true,
+            ),
+          );
+
+      final publicUrl = client.storage.from('avatars').getPublicUrl(path);
+      // Bust CDN/browser cache so the new image shows immediately.
+      final photoUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      return updatePhotoUrl(photoUrl);
+    } catch (e) {
+      _authDebug('uploadProfilePhoto failed', e);
+      return AuthResult.error('Failed to upload photo');
+    }
+  }
+
+  Future<AuthResult> removeProfilePhoto() async {
+    if (state.session == null) return AuthResult.error('Not signed in');
+
+    try {
+      final userId = state.session!.user.id;
+      final client = ref.read(supabaseClientProvider);
+      // Best-effort delete of known extensions; ignore missing objects.
+      try {
+        await client.storage.from('avatars').remove([
+          '$userId/avatar.jpg',
+          '$userId/avatar.jpeg',
+          '$userId/avatar.png',
+          '$userId/avatar.webp',
+        ]);
+      } catch (_) {}
+      return updatePhotoUrl(null);
+    } catch (e) {
+      _authDebug('removeProfilePhoto failed', e);
+      return AuthResult.error('Failed to remove photo');
+    }
+  }
+
+  String _avatarExtension(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot < 0 || dot == fileName.length - 1) return 'jpg';
+    final ext = fileName.substring(dot + 1).toLowerCase();
+    return switch (ext) {
+      'png' || 'jpg' || 'jpeg' || 'webp' => ext == 'jpeg' ? 'jpg' : ext,
+      _ => 'jpg',
+    };
+  }
+
+  String _avatarContentType(String ext) => switch (ext) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
 
   Future<AuthResult> updateHeightCm(int? heightCm) async {
     if (state.session == null) return AuthResult.error('Not signed in');

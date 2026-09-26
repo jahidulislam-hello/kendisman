@@ -1,6 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
+import 'package:fitzella/core/models/profile/user_profile.dart';
+import 'package:fitzella/core/providers/auth_provider.dart';
+import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/features/profile/widgets/profile_widgets.dart';
 
@@ -12,10 +19,26 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
-  final _name = TextEditingController(text: 'demo_athlete');
-  final _email = TextEditingController(text: 'demo@fitzella.app');
-  String _dob = 'Apr 18, 1996';
+  late final TextEditingController _name;
+  late final TextEditingController _email;
+  String _dob = '';
   String _gender = 'Male';
+  bool _saving = false;
+  bool _uploadingPhoto = false;
+  Uint8List? _localPhotoBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    final cached = ref.read(cachedProfileProvider);
+    final remote = ref.read(currentProfileProvider);
+    _name = TextEditingController(
+      text: cached?.username ?? remote?.username ?? cached?.displayName ?? '',
+    );
+    _email = TextEditingController(text: cached?.email ?? remote?.email ?? '');
+    _gender = _capitalize(cached?.sex ?? remote?.sex?.name ?? 'male');
+    _dob = _formatDob(cached?.dateOfBirth ?? remote?.dateOfBirth);
+  }
 
   @override
   void dispose() {
@@ -24,9 +47,146 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _changePhoto() async {
+    if (_uploadingPhoto) return;
+    final colors = ref.read(appColorsProvider);
+    final hasPhoto = _localPhotoBytes != null ||
+        (ref.read(currentProfileProvider)?.photoUrl ??
+                ref.read(cachedProfileProvider)?.photoUrl) !=
+            null;
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.photo_library_outlined, color: colors.textPrimary),
+              title: Text('Choose from gallery', style: TextStyle(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_camera_outlined, color: colors.textPrimary),
+              title: Text('Take a photo', style: TextStyle(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            if (hasPhoto)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: colors.danger),
+                title: Text('Remove photo', style: TextStyle(color: colors.danger)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    if (action == 'remove') {
+      setState(() {
+        _uploadingPhoto = true;
+        _localPhotoBytes = null;
+      });
+      final result = await ref.read(authNotifierProvider.notifier).removeProfilePhoto();
+      if (!mounted) return;
+      setState(() => _uploadingPhoto = false);
+      result.when(
+        success: (_) {},
+        error: (message) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        },
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final source = action == 'camera' ? ImageSource.camera : ImageSource.gallery;
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    setState(() {
+      _localPhotoBytes = bytes;
+      _uploadingPhoto = true;
+    });
+
+    final result = await ref.read(authNotifierProvider.notifier).uploadProfilePhoto(
+          bytes,
+          fileName: picked.name,
+        );
+    if (!mounted) return;
+    setState(() => _uploadingPhoto = false);
+    result.when(
+      success: (_) {},
+      error: (message) {
+        setState(() => _localPhotoBytes = null);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      },
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final notifier = ref.read(authNotifierProvider.notifier);
+    await notifier.updateUsername(_name.text.trim());
+
+    final sex = switch (_gender.toLowerCase()) {
+      'male' => UserSex.male,
+      'female' => UserSex.female,
+      _ => null,
+    };
+    await notifier.updateSex(sex);
+
+    DateTime? parsed;
+    try {
+      parsed = DateFormat('MMM d, yyyy').parse(_dob);
+    } catch (_) {}
+    if (parsed != null) {
+      final iso =
+          '${parsed.year.toString().padLeft(4, '0')}-'
+          '${parsed.month.toString().padLeft(2, '0')}-'
+          '${parsed.day.toString().padLeft(2, '0')}';
+      await notifier.updateDateOfBirth(iso);
+    }
+
+    final prefs = ref.read(profilePrefsServiceProvider);
+    final existing = prefs.load() ?? const CachedProfile();
+    final updated = existing.copyWith(
+      username: _name.text.trim().isEmpty ? existing.username : _name.text.trim(),
+      email: _email.text.trim().isEmpty ? existing.email : _email.text.trim(),
+      sex: sex?.name ?? existing.sex,
+      dateOfBirth: parsed == null
+          ? existing.dateOfBirth
+          : '${parsed.year.toString().padLeft(4, '0')}-'
+              '${parsed.month.toString().padLeft(2, '0')}-'
+              '${parsed.day.toString().padLeft(2, '0')}',
+    );
+    await prefs.save(updated);
+    ref.read(cachedProfileProvider.notifier).state = updated;
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
+    final remote = ref.watch(currentProfileProvider);
+    final cached = ref.watch(cachedProfileProvider);
+    final photoUrl = remote?.photoUrl ?? cached?.photoUrl;
+    final hasImage = _localPhotoBytes != null || (photoUrl != null && photoUrl.isNotEmpty);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -37,8 +197,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               title: 'Edit Profile',
               centeredTitle: true,
               trailing: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('SAVE', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
+                onPressed: _saving ? null : _save,
+                child: Text(
+                  _saving ? '…' : 'SAVE',
+                  style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800, letterSpacing: 0.4),
+                ),
               ),
             ),
             Expanded(
@@ -48,27 +211,47 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   Center(
                     child: Column(
                       children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 48,
-                              backgroundColor: colors.surface,
-                              child: Icon(Icons.person, size: 50, color: colors.textMuted),
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
-                                child: Icon(Icons.camera_alt, color: colors.onAccent, size: 14),
+                        GestureDetector(
+                          onTap: _changePhoto,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 48,
+                                backgroundColor: colors.surface,
+                                backgroundImage: _avatarProvider(_localPhotoBytes, photoUrl),
+                                child: !hasImage
+                                    ? Icon(Icons.person, size: 50, color: colors.textMuted)
+                                    : null,
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
+                                  child: _uploadingPhoto
+                                      ? Padding(
+                                          padding: const EdgeInsets.all(7),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: colors.onAccent,
+                                          ),
+                                        )
+                                      : Icon(Icons.camera_alt, color: colors.onAccent, size: 14),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 10),
-                        Text('Change Photo', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w600)),
+                        GestureDetector(
+                          onTap: _changePhoto,
+                          child: Text(
+                            _uploadingPhoto ? 'Uploading…' : 'Change Photo',
+                            style: TextStyle(color: colors.accent, fontWeight: FontWeight.w600),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -80,7 +263,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: 14),
                   Text('Email Address', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                   const SizedBox(height: 8),
-                  _field(colors, _email),
+                  _field(colors, _email, enabled: false),
                   const SizedBox(height: 6),
                   Text('Managed in Account settings', style: TextStyle(color: colors.textMuted, fontSize: 12)),
                   const SizedBox(height: 22),
@@ -90,16 +273,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       ProfileSettingsTile(
                         icon: Icons.calendar_today_outlined,
                         title: 'Date of Birth',
-                        value: _dob,
+                        value: _dob.isEmpty ? 'Not set' : _dob,
                         onTap: () async {
+                          final initial = DateTime.tryParse(
+                                (ref.read(cachedProfileProvider)?.dateOfBirth) ?? '',
+                              ) ??
+                              DateTime(2000, 1, 1);
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: DateTime(1996, 4, 18),
+                            initialDate: initial,
                             firstDate: DateTime(1950),
                             lastDate: DateTime(2015),
                           );
                           if (picked != null) {
-                            setState(() => _dob = '${_month(picked.month)} ${picked.day}, ${picked.year}');
+                            setState(() => _dob = DateFormat('MMM d, yyyy').format(picked));
                           }
                         },
                       ),
@@ -111,15 +298,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           final v = await showModalBottomSheet<String>(
                             context: context,
                             backgroundColor: colors.surface,
-                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                            ),
                             builder: (ctx) => SafeArea(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: ['Male', 'Female', 'Other']
-                                    .map((e) => ListTile(
-                                          title: Text(e, style: TextStyle(color: colors.textPrimary)),
-                                          onTap: () => Navigator.pop(ctx, e),
-                                        ))
+                                    .map(
+                                      (e) => ListTile(
+                                        title: Text(e, style: TextStyle(color: colors.textPrimary)),
+                                        onTap: () => Navigator.pop(ctx, e),
+                                      ),
+                                    )
                                     .toList(),
                               ),
                             ),
@@ -138,9 +329,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  Widget _field(dynamic colors, TextEditingController c) {
+  Widget _field(dynamic colors, TextEditingController c, {bool enabled = true}) {
     return TextField(
       controller: c,
+      enabled: enabled,
       style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         filled: true,
@@ -153,8 +345,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  String _month(int m) =>
-      const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
+  ImageProvider? _avatarProvider(Uint8List? bytes, String? photoUrl) {
+    if (bytes != null) return MemoryImage(bytes);
+    if (photoUrl != null && photoUrl.isNotEmpty) return NetworkImage(photoUrl);
+    return null;
+  }
+
+  String _capitalize(String v) =>
+      v.isEmpty ? v : '${v[0].toUpperCase()}${v.substring(1).toLowerCase()}';
+
+  String _formatDob(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    final d = DateTime.tryParse(iso);
+    if (d == null) return iso;
+    return DateFormat('MMM d, yyyy').format(d);
+  }
 }
 
 class BodyProfileScreen extends ConsumerWidget {
@@ -163,18 +368,43 @@ class BodyProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
+    final profile = ref.watch(cachedProfileProvider);
+    final remote = ref.watch(currentProfileProvider);
+    final useMetric = profile?.useMetric ?? true;
+
+    final sex = _capitalize(profile?.sex ?? remote?.sex?.name ?? '—');
+    final birthday = _formatDob(profile?.dateOfBirth ?? remote?.dateOfBirth) ?? '—';
+    final heightCm = profile?.heightCm ?? remote?.heightCm?.toDouble();
+    final weightKg = profile?.weightKg;
+
+    final heightLabel = heightCm == null
+        ? '—'
+        : useMetric
+            ? '${heightCm.round()} cm'
+            : _cmToFtIn(heightCm);
+    final weightLabel = weightKg == null
+        ? '—'
+        : useMetric
+            ? '${weightKg.toStringAsFixed(1)} kg'
+            : '${(weightKg * 2.2046226218).toStringAsFixed(1)} lb';
+
     return ProfileScaffold(
       title: 'Body Profile',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
-          _row(colors, 'SEX', 'Sex', 'Male'),
-          _row(colors, 'BIRTHDAY', 'Birthday', 'Apr 18, 1996'),
-          _row(colors, 'HEIGHT', 'Height', '5\'10"'),
-          _row(colors, 'BODYWEIGHT', 'Bodyweight', '181 lb'),
+          _row(colors, 'SEX', 'Sex', sex),
+          _row(colors, 'BIRTHDAY', 'Birthday', birthday),
+          _row(colors, 'HEIGHT', 'Height', heightLabel),
+          _row(colors, 'BODYWEIGHT', 'Bodyweight', weightLabel),
+          if (profile?.goal != null) _row(colors, 'GOAL', 'Goal', profile!.goal!),
+          if (profile?.experience != null) _row(colors, 'EXPERIENCE', 'Experience', profile!.experience!),
+          if (profile?.frequency != null)
+            _row(colors, 'FREQUENCY', 'Training days', '${profile!.frequency} / week'),
+          if (profile?.equipment != null) _row(colors, 'EQUIPMENT', 'Equipment', profile!.equipment!),
           const SizedBox(height: 8),
           Text(
-            'Updating logs a new entry in Body Measurements.',
+            'These values come from your profile setup and stay synced in Supabase + on this device.',
             style: TextStyle(color: colors.textMuted, fontSize: 12),
           ),
         ],
@@ -208,6 +438,23 @@ class BodyProfileScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _capitalize(String v) =>
+      v.isEmpty || v == '—' ? v : '${v[0].toUpperCase()}${v.substring(1).toLowerCase()}';
+
+  String? _formatDob(String? iso) {
+    if (iso == null || iso.isEmpty) return null;
+    final d = DateTime.tryParse(iso);
+    if (d == null) return iso;
+    return DateFormat('MMM d, yyyy').format(d);
+  }
+
+  String _cmToFtIn(double cm) {
+    final totalInches = cm / 2.54;
+    final feet = totalInches ~/ 12;
+    final inches = (totalInches - feet * 12).round();
+    return "$feet'$inches\"";
+  }
 }
 
 class AccountScreen extends ConsumerWidget {
@@ -216,6 +463,11 @@ class AccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
+    final profile = ref.watch(cachedProfileProvider);
+    final remote = ref.watch(currentProfileProvider);
+    final email = profile?.email ?? remote?.email ?? '—';
+    final username = profile?.username ?? remote?.username ?? profile?.displayName ?? '—';
+
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
@@ -231,13 +483,13 @@ class AccountScreen extends ConsumerWidget {
                       ProfileSettingsTile(
                         icon: Icons.mail_outline,
                         title: 'Email',
-                        subtitle: 'demo@fitzella.app',
+                        subtitle: email,
                         onTap: () {},
                       ),
                       ProfileSettingsTile(
                         icon: Icons.person_outline,
                         title: 'Username',
-                        subtitle: 'demo_athlete',
+                        subtitle: username,
                         onTap: () {},
                       ),
                       ProfileSettingsTile(

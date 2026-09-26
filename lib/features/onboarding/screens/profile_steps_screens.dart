@@ -96,18 +96,24 @@ class OnboardingGenderScreen extends ConsumerWidget {
             subtitle: 'This helps us personalise your experience and calorie estimates.',
           ),
           const SizedBox(height: 28),
-          ...options.map((title) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: OnboardingOptionCard(
-                colors: colors,
-                title: title,
-                subtitle: '',
-                selected: selected == title,
-                onTap: () => ref.read(onboardingProvider.notifier).setGender(title),
-              ),
-            );
-          }),
+          Expanded(
+            child: ListView(
+              children: options
+                  .map(
+                    (title) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: OnboardingOptionCard(
+                        colors: colors,
+                        title: title,
+                        subtitle: '',
+                        selected: selected == title,
+                        onTap: () => ref.read(onboardingProvider.notifier).setGender(title),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
         ],
       ),
     );
@@ -398,20 +404,23 @@ class _OnboardingHeightScreenState extends ConsumerState<OnboardingHeightScreen>
                   const SizedBox(height: 24),
                   OnboardingUnitToggle(
                     colors: colors,
-                    left: 'ft',
-                    right: 'cm',
-                    leftSelected: _useFt,
-                    onChanged: (ft) {
+                    left: 'cm',
+                    right: 'ft',
+                    leftSelected: !_useFt,
+                    onChanged: (cm) {
                       setState(() {
-                        if (ft == _useFt) return;
-                        if (ft) {
+                        final wantFt = !cm;
+                        if (wantFt == _useFt) return;
+                        if (wantFt) {
+                          // switching to ft
                           final totalInches = (_cm / 2.54).round();
                           _ft = (totalInches ~/ 12).clamp(4, 7);
                           _inch = totalInches % 12;
                         } else {
+                          // switching to cm
                           _cm = ((_ft * 12 + _inch) * 2.54).round().clamp(120, 220);
                         }
-                        _useFt = ft;
+                        _useFt = wantFt;
                       });
                     },
                   ),

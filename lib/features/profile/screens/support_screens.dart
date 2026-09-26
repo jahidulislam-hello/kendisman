@@ -19,12 +19,12 @@ class AboutScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('fitzella', style: TextStyle(color: colors.accent, fontSize: 36, fontWeight: FontWeight.w800)),
+              Text('Fitzella', style: TextStyle(color: colors.accent, fontSize: 36, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text('Version 1.0.0', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
               const SizedBox(height: 24),
               Text(
-                'Built with ❤️ for lifters everywhere. fitzella is designed to be the ultimate companion for your strength journey.',
+                'Built with care for lifters everywhere. Fitzella is designed to be the ultimate companion for your strength journey.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.textSecondary, fontSize: 14, height: 1.45),
               ),
