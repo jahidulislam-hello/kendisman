@@ -224,6 +224,8 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                               height: 72,
                               decoration: BoxDecoration(
                                 color: colors.background,
+
+
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Icon(WorkoutCatalog.muscleIcon(group), color: colors.accent, size: 34),
