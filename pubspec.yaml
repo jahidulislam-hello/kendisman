@@ -78,6 +78,7 @@ dev_dependencies:
   json_serializable: ^6.8.0
   custom_lint: ^0.6.0
   riverpod_lint: ^2.3.10
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -102,3 +103,14 @@ flutter:
 # Localization
 flutter_intl:
   enabled: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#111924"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
+  adaptive_icon_foreground_inset: 0
+  remove_alpha_ios: true
+  background_color_ios: "#111924"
