@@ -220,6 +220,7 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                           child: Center(
                             child: Container(
                               width: 72,
+
                               height: 72,
                               decoration: BoxDecoration(
                                 color: colors.background,
