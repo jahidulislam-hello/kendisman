@@ -396,7 +396,7 @@ class _WeeklySnapshot extends StatelessWidget {
           children: [
             Expanded(child: _MetricCard(colors: colors, icon: Icons.schedule, color: orange, label: 'TIME', value: '${(summary['minutes_this_week'] as int? ?? 0) ~/ 60}h', sub: '${summary['minutes_this_week'] ?? 0} minutes this week')),
             const SizedBox(width: 10),
-            Expanded(child: _MetricCard(colors: colors, icon: Icons.local_fire_department, color: yellow, label: 'STREAK', value: '—', sub: 'not available')),
+            Expanded(child: _MetricCard(colors: colors, icon: Icons.local_fire_department, color: yellow, label: 'STREAK', value: '${summary['streak_weeks'] ?? 0}', sub: (summary['streak_weeks'] as int? ?? 0) == 1 ? 'week in a row' : 'weeks in a row')),
           ],
         ),
       ],

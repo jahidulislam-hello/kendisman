@@ -227,7 +227,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       state = ActiveWorkoutState(
         hasSession: true,
         title: routine?['name'] as String? ??
-            session['quick_workout_name'] as String? ??
+            session['routine_name'] as String? ??
             'Quick Workout',
         exercises: exercises,
         startedAt: DateTime.parse(session['started_at'] as String),
@@ -257,58 +257,35 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     }
   }
 
-  Future<void> startFromDay(RoutineDay day, List<WorkoutExerciseDef> catalog) async {
+  Future<void> startFromDay(RoutineDay day) async {
     _mutation++;
     try {
-      final isPersistedRoutine = RegExp(
-        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-      ).hasMatch(day.id);
-      final routine = isPersistedRoutine ? await _data.fetchRoutine(day.id) : null;
-      final List<ActiveExercise> exercises;
-      if (routine != null) {
-        final items = (routine['routine_exercises'] as List? ?? const [])
-            .cast<Map<String, dynamic>>()
-          ..sort((a, b) => (a['order_index'] as int? ?? 0)
-              .compareTo(b['order_index'] as int? ?? 0));
-        exercises = items.map((item) {
-          final exercise = item['exercises'] as Map<String, dynamic>;
-          final count = (item['target_sets'] as num?)?.toInt() ?? 3;
-          final reps = (item['target_reps'] as num?)?.toInt() ??
-              (item['target_reps_min'] as num?)?.toInt() ??
-              8;
-          final weight = (item['target_weight'] as num?)?.toDouble() ?? 0;
-          return ActiveExercise(
-            id: exercise['id'] as String,
-            name: exercise['name'] as String? ?? 'Exercise',
-            muscle: exercise['muscle_group'] as String? ?? '',
-            sets: List.generate(
-              count,
-              (_) => LoggedSet(weight: weight, reps: reps),
-            ),
-          );
-        }).toList();
-      } else {
-        exercises = day.exerciseIds.map((id) {
-          final def =
-              catalog.firstWhere((e) => e.id == id, orElse: () => catalog.first);
-          return ActiveExercise(
-            id: def.id,
-            name: def.name,
-            muscle: def.muscle,
-            sets: List.generate(
-              def.defaultSets,
-              (_) => LoggedSet(weight: def.defaultWeight, reps: def.defaultReps),
-            ),
-          );
-        }).toList();
-      }
-      final session = await _data.startSession(
-        routineId: isPersistedRoutine ? day.id : null,
-        title: isPersistedRoutine ? null : day.name,
-      );
+      final routine = await _data.fetchRoutine(day.id);
+      final items = (routine['routine_exercises'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()
+        ..sort((a, b) => (a['order_index'] as int? ?? 0)
+            .compareTo(b['order_index'] as int? ?? 0));
+      final exercises = items.map((item) {
+        final exercise = item['exercises'] as Map<String, dynamic>;
+        final count = (item['target_sets'] as num?)?.toInt() ?? 3;
+        final reps = (item['target_reps'] as num?)?.toInt() ??
+            (item['target_reps_min'] as num?)?.toInt() ??
+            8;
+        final weight = (item['target_weight'] as num?)?.toDouble() ?? 0;
+        return ActiveExercise(
+          id: exercise['id'] as String,
+          name: exercise['name'] as String? ?? 'Exercise',
+          muscle: exercise['muscle_group'] as String? ?? '',
+          sets: List.generate(
+            count,
+            (_) => LoggedSet(weight: weight, reps: reps),
+          ),
+        );
+      }).toList();
+      final session = await _data.startSession(routineId: day.id);
       state = ActiveWorkoutState(
         hasSession: true,
-        title: routine?['name'] as String? ?? day.name,
+        title: routine['name'] as String? ?? day.name,
         exercises: exercises,
         startedAt: DateTime.parse(session['started_at'] as String),
         sessionId: session['id'] as String,
@@ -600,112 +577,21 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
 final activeWorkoutProvider =
     StateNotifierProvider<ActiveWorkoutNotifier, ActiveWorkoutState>((ref) => ActiveWorkoutNotifier(ref));
 
-class PlansNotifier extends StateNotifier<List<PlanDef>> {
-  PlansNotifier() : super(WorkoutCatalog.plans);
-
-  void activate(String id) {
-    state = state.map((p) => p.copyWith(active: p.id == id)).toList();
-  }
-
-  PlanDef get active => state.firstWhere((p) => p.active, orElse: () => state.first);
-}
-
-final plansProvider = StateNotifierProvider<PlansNotifier, List<PlanDef>>((ref) => PlansNotifier());
-
 class WorkoutCatalog {
-  static const muscles = [
-    'All',
-    'Chest',
-    'Shoulders',
-    'Back',
-    'Arms',
-    'Legs',
-    'Core',
-    'Waist',
-  ];
-
-  static const equipment = ['Barbell', 'Dumbbell', 'Machine', 'Cable', 'Bodyweight'];
-
-  static const exercises = <WorkoutExerciseDef>[
-    WorkoutExerciseDef(id: 'bbs', name: 'Barbell Back Squat', muscle: 'Legs', equipment: 'Barbell', defaultWeight: 135),
-    WorkoutExerciseDef(id: 'bbp', name: 'Barbell Bench Press', muscle: 'Chest', equipment: 'Barbell', defaultWeight: 155),
-    WorkoutExerciseDef(id: 'br', name: 'Barbell Row', muscle: 'Back', equipment: 'Barbell', defaultWeight: 135),
-    WorkoutExerciseDef(id: 'cc', name: 'Cable Crunch', muscle: 'Core', equipment: 'Cable', defaultWeight: 40),
-    WorkoutExerciseDef(id: 'cf', name: 'Cable Fly', muscle: 'Chest', equipment: 'Cable', defaultWeight: 30),
-    WorkoutExerciseDef(id: 'cdl', name: 'Conventional Deadlift', muscle: 'Back', equipment: 'Barbell', defaultWeight: 185),
-    WorkoutExerciseDef(id: 'dbc', name: 'Dumbbell Bicep Curl', muscle: 'Arms', equipment: 'Dumbbell', defaultWeight: 20),
-    WorkoutExerciseDef(id: 'hc', name: 'Hammer Curl', muscle: 'Arms', equipment: 'Dumbbell', defaultWeight: 20),
-    WorkoutExerciseDef(id: 'ohp', name: 'Overhead Press', muscle: 'Shoulders', equipment: 'Barbell', defaultWeight: 95),
-    WorkoutExerciseDef(id: 'lp', name: 'Leg Press', muscle: 'Legs', equipment: 'Machine', defaultWeight: 270),
-    WorkoutExerciseDef(id: 'scr', name: 'Standing Calf Raise', muscle: 'Legs', equipment: 'Machine', defaultWeight: 150, defaultReps: 13),
-    WorkoutExerciseDef(id: 'pu', name: 'Push Up', muscle: 'Chest', equipment: 'Bodyweight', defaultWeight: 0),
-    WorkoutExerciseDef(id: 'plank', name: 'Plank', muscle: 'Core', equipment: 'Bodyweight', defaultWeight: 0),
-    WorkoutExerciseDef(id: 'llr', name: 'Lying Leg Raise', muscle: 'Waist', equipment: 'Bodyweight', defaultWeight: 0),
-    WorkoutExerciseDef(id: 'lat', name: 'Lat Pulldown', muscle: 'Back', equipment: 'Cable', defaultWeight: 100),
-    WorkoutExerciseDef(id: 'fly', name: 'Dumbbell Fly', muscle: 'Chest', equipment: 'Dumbbell', defaultWeight: 25),
-    WorkoutExerciseDef(id: 'ls', name: 'Lateral Raise', muscle: 'Shoulders', equipment: 'Dumbbell', defaultWeight: 15),
-    WorkoutExerciseDef(id: 'rdl', name: 'Romanian Deadlift', muscle: 'Legs', equipment: 'Barbell', defaultWeight: 135),
-    WorkoutExerciseDef(id: 'dip', name: 'Dip', muscle: 'Chest', equipment: 'Bodyweight', defaultWeight: 0),
-    WorkoutExerciseDef(id: 'fp', name: 'Face Pull', muscle: 'Shoulders', equipment: 'Cable', defaultWeight: 40),
-    WorkoutExerciseDef(id: 'te', name: 'Tricep Extension', muscle: 'Arms', equipment: 'Cable', defaultWeight: 35),
-    WorkoutExerciseDef(id: 'legcurl', name: 'Leg Curl', muscle: 'Legs', equipment: 'Machine', defaultWeight: 80),
-    WorkoutExerciseDef(id: 'legext', name: 'Leg Extension', muscle: 'Legs', equipment: 'Machine', defaultWeight: 90),
-    WorkoutExerciseDef(id: 'shrug', name: 'Barbell Shrug', muscle: 'Shoulders', equipment: 'Barbell', defaultWeight: 135),
-  ];
-
-  static final plans = <PlanDef>[
-    PlanDef(
-      id: 'my',
-      name: 'My',
-      days: [
-        RoutineDay(id: 'my1', name: 'Day 1', exerciseIds: ['bbs'], tag: 'Legs'),
-      ],
-    ),
-    PlanDef(
-      id: 'plan',
-      name: 'Plan',
-      days: [
-        RoutineDay(id: 'p1', name: 'Day 1', exerciseIds: ['bbp', 'cf'], tag: 'Chest'),
-      ],
-    ),
-    PlanDef(
-      id: 'jml',
-      name: 'jml',
-      active: true,
-      days: [
-        RoutineDay(id: 'd1', name: 'Day 1', exerciseIds: ['bbs'], tag: 'Legs'),
-        RoutineDay(id: 'd2', name: 'Day 2', exerciseIds: ['bbp', 'cc'], tag: 'Chest · Core'),
-      ],
-    ),
-    PlanDef(
-      id: 'ppl',
-      name: 'Push / Pull / Legs',
-      aiGenerated: true,
-      days: [
-        RoutineDay(id: 'push', name: 'Push day', exerciseIds: ['cf', 'bbp'], tag: 'Chest'),
-        RoutineDay(id: 'pull', name: 'Pull day', exerciseIds: ['br', 'lat'], tag: 'Back'),
-        RoutineDay(id: 'legs', name: 'Legs day', exerciseIds: ['bbs', 'lp'], tag: 'Legs'),
-      ],
-    ),
-  ];
-
-  static WorkoutExerciseDef byId(String id) =>
-      exercises.firstWhere((e) => e.id == id, orElse: () => exercises.first);
-
   static IconData muscleIcon(String muscle) {
-    switch (muscle) {
-      case 'Chest':
+    switch (muscle.toLowerCase()) {
+      case 'chest':
         return Icons.accessibility_new;
-      case 'Shoulders':
+      case 'shoulders':
         return Icons.sports_gymnastics;
-      case 'Back':
+      case 'back':
         return Icons.airline_seat_recline_extra;
-      case 'Arms':
+      case 'arms':
         return Icons.fitness_center;
-      case 'Legs':
+      case 'legs':
         return Icons.directions_walk;
-      case 'Core':
-      case 'Waist':
+      case 'core':
+      case 'waist':
         return Icons.self_improvement;
       default:
         return Icons.grid_view_rounded;

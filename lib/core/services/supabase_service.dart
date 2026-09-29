@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:fitzella/core/config/supabase_config.dart';
+import 'package:fitzella/core/services/api_logger.dart';
 
 part 'supabase_service.g.dart';
 
@@ -25,6 +26,7 @@ Future<void> initializeSupabase() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
+    httpClient: ApiLoggingClient(),
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
     ),

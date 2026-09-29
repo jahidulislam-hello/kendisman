@@ -257,7 +257,7 @@ class FitnessDataService {
     final rows = await _client
         .from('workout_sessions')
         .select(
-          'id,routine_id,started_at,completed_at,quick_workout_name,'
+          'id,routine_id,started_at,completed_at,routine_name,'
           'routines(name),logged_sets(id,exercise_id,set_index,reps,weight,rpe,completed_at,'
           'exercises(id,name,muscle_group,equipment_type))',
         )
@@ -273,7 +273,7 @@ class FitnessDataService {
     final session = await _client
         .from('workout_sessions')
         .select(
-          'id,routine_id,started_at,completed_at,quick_workout_name,'
+          'id,routine_id,started_at,completed_at,routine_name,'
           'routines(name),logged_sets(id,exercise_id,set_index,reps,weight,rpe,completed_at,'
           'exercises(id,name,muscle_group,equipment_type))',
         )
@@ -368,7 +368,7 @@ class FitnessDataService {
     return await _client
         .from('workout_sessions')
         .select(
-          'id,routine_id,started_at,quick_workout_name,'
+          'id,routine_id,started_at,routine_name,'
           'routines(id,name,program_id,day_index,routine_exercises(id,exercise_id,'
           'order_index,target_sets,target_reps,target_weight,exercises(id,name,muscle_group,equipment_type))),'
           'logged_sets(id,exercise_id,set_index,reps,weight,exercises(id,name,muscle_group,equipment_type))',
@@ -393,7 +393,7 @@ class FitnessDataService {
         .insert({
           'user_id': userId,
           'routine_id': routineId,
-          'quick_workout_name': title,
+          'routine_name': title,
           'mode_at_time': user['mode'] ?? 'manual',
         })
         .select('id,started_at,routine_id')
@@ -501,7 +501,7 @@ class FitnessDataService {
   Future<void> renameQuickWorkout(String id, String name) async {
     await _client
         .from('workout_sessions')
-        .update({'quick_workout_name': name.trim()})
+        .update({'routine_name': name.trim()})
         .eq('id', id)
         .eq('user_id', _userId)
         .isFilter('routine_id', null);
@@ -744,7 +744,7 @@ class FitnessDataService {
             .compareTo(b['day_index'] as int? ?? 0));
       final schedule = await _client
           .from('plan_schedule')
-          .select('routine_id')
+          .select('routine_id,weekday')
           .eq('program_id', programs['id'])
           .order('weekday');
       final scheduleRows = List<Map<String, dynamic>>.from(schedule);
@@ -759,6 +759,7 @@ class FitnessDataService {
             .firstOrNull;
       }
     }
+    final streakWeeks = await _fetchWeeklyStreak(userId, startOfWeek);
     return {
       'volume_this_week': volumeThisWeek,
       'volume_last_week': volumeLastWeek,
@@ -769,7 +770,35 @@ class FitnessDataService {
       'program': programs,
       'next_routine': nextRoutine,
       'last_session': sessions.isEmpty ? null : sessions.first,
+      'streak_weeks': streakWeeks,
     };
+  }
+
+  /// Consecutive Monday-based weeks with at least one completed workout.
+  /// The current week only extends the streak; an empty current week does
+  /// not break it until the week is over.
+  Future<int> _fetchWeeklyStreak(String userId, DateTime startOfWeek) async {
+    final rows = await _client
+        .from('workout_sessions')
+        .select('started_at')
+        .eq('user_id', userId)
+        .not('completed_at', 'is', null)
+        .order('started_at', ascending: false);
+    final weeks = <DateTime>{};
+    for (final row in rows) {
+      final started = DateTime.parse(row['started_at'] as String).toLocal();
+      weeks.add(DateTime(
+          started.year, started.month, started.day - (started.weekday - 1)));
+    }
+    var week = weeks.contains(startOfWeek)
+        ? startOfWeek
+        : DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day - 7);
+    var streak = 0;
+    while (weeks.contains(week)) {
+      streak++;
+      week = DateTime(week.year, week.month, week.day - 7);
+    }
+    return streak;
   }
 }
 
