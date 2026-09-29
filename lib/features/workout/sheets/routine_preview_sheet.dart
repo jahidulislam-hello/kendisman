@@ -21,16 +21,7 @@ class _RoutinePreviewSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
-    final exercises = day.exerciseNames.isNotEmpty
-        ? day.exerciseNames
-            .map((name) => WorkoutExerciseDef(
-                  id: '',
-                  name: name,
-                  muscle: '',
-                  equipment: '',
-                ))
-            .toList()
-        : day.exerciseIds.map(WorkoutCatalog.byId).toList();
+    final exercises = day.exerciseNames;
     final tag = day.tag.isEmpty
         ? '${exercises.length} exercises'
         : day.tag;
@@ -95,8 +86,8 @@ class _RoutinePreviewSheet extends ConsumerWidget {
                         decoration: BoxDecoration(color: colors.background, borderRadius: BorderRadius.circular(10)),
                         child: Icon(Icons.fitness_center, color: colors.accent, size: 20),
                       ),
-                      title: Text(e.name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                      subtitle: Text(e.muscle.isEmpty ? 'Routine exercise' : e.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                      title: Text(e, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                      subtitle: Text('Routine exercise', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                       trailing: Icon(Icons.info_outline, color: colors.textMuted),
                     );
                   },
@@ -109,7 +100,7 @@ class _RoutinePreviewSheet extends ConsumerWidget {
                 child: ElevatedButton(
                   onPressed: () async {
                     final notifier = ref.read(activeWorkoutProvider.notifier);
-                    await notifier.startFromDay(day, WorkoutCatalog.exercises);
+                    await notifier.startFromDay(day);
                     if (!context.mounted) return;
                     if (notifier.currentState.sessionId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(

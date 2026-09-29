@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
-import 'package:fitzella/features/progress/data/progress_mock_data.dart';
+import 'package:fitzella/features/progress/data/progress_models.dart';
 import 'package:fitzella/features/progress/tabs/goals_tab.dart';
 import 'package:fitzella/features/progress/tabs/history_tab.dart';
 import 'package:fitzella/features/progress/tabs/measure_tab.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
-import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 Future<Set<String>?> showFilterSheet(BuildContext context, {required Set<String> selected}) {
@@ -36,14 +36,31 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
     super.dispose();
   }
 
-  int get count {
-    if (selected.isEmpty) return WorkoutCatalog.exercises.length;
-    return WorkoutCatalog.exercises.where((e) => selected.contains(e.equipment)).length;
-  }
+  static List<String> _distinct(List<Map<String, dynamic>> rows, String key) =>
+      rows
+          .map((row) => (row[key] as String? ?? '').toLowerCase())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+  static String _label(String value) =>
+      value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
+    final rows = ref.watch(exerciseCatalogProvider).value ??
+        const <Map<String, dynamic>>[];
+    final equipmentTypes = _distinct(rows, 'equipment_type');
+    final muscleGroups = _distinct(rows, 'muscle_group');
+    final selectedLower = selected.map((e) => e.toLowerCase()).toSet();
+    final count = selected.isEmpty
+        ? rows.length
+        : rows
+            .where((row) => selectedLower.contains(
+                (row['equipment_type'] as String? ?? '').toLowerCase()))
+            .length;
     return Container(
       height: MediaQuery.of(context).size.height * 0.55,
       decoration: BoxDecoration(
@@ -76,14 +93,14 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: WorkoutCatalog.equipment.map((eq) {
-                        final on = selected.contains(eq);
+                      children: equipmentTypes.map((eq) {
+                        final on = selectedLower.contains(eq);
                         return Padding(
                           padding: const EdgeInsets.only(right: 14),
                           child: GestureDetector(
                             onTap: () => setState(() {
                               if (on) {
-                                selected.remove(eq);
+                                selected.removeWhere((e) => e.toLowerCase() == eq);
                               } else {
                                 selected.add(eq);
                               }
@@ -101,7 +118,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                                   child: Icon(_icon(eq), color: on ? colors.accent : colors.textSecondary),
                                 ),
                                 const SizedBox(height: 6),
-                                Text(eq, style: TextStyle(color: on ? colors.accent : colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text(_label(eq), style: TextStyle(color: on ? colors.accent : colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -115,7 +132,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: WorkoutCatalog.muscles.where((m) => m != 'All').map((m) {
+                    children: muscleGroups.map((m) {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
@@ -123,7 +140,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: colors.border),
                         ),
-                        child: Text(m, style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w600, fontSize: 12)),
+                        child: Text(_label(m), style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w600, fontSize: 12)),
                       );
                     }).toList(),
                   ),
@@ -163,13 +180,13 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
 
   IconData _icon(String eq) {
     switch (eq) {
-      case 'Barbell':
+      case 'barbell':
         return Icons.fitness_center;
-      case 'Dumbbell':
+      case 'dumbbell':
         return Icons.sports_gymnastics;
-      case 'Machine':
+      case 'machine':
         return Icons.precision_manufacturing_outlined;
-      case 'Cable':
+      case 'cable':
         return Icons.cable;
       default:
         return Icons.accessibility_new;

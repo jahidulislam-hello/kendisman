@@ -27,6 +27,7 @@ dependencies:
   
   # HTTP & Network
   dio: ^5.4.3+1
+  http: ^1.2.0
   
   # UI Components
   flutter_svg: ^2.0.10+1

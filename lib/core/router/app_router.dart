@@ -565,7 +565,7 @@ class AppRouter {
         GoRoute(
           path: '/add-exercise',
           name: 'add-exercise',
-          builder: (context, state) => const AddExerciseScreen(),
+          builder: (context, state) => const WorkoutAddExerciseScreen(),
         ),
         GoRoute(
           path: '/compare-exercises',
@@ -759,7 +759,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
           final sets = (row['logged_sets'] as List? ?? const [])
               .cast<Map<String, dynamic>>();
           final routine = row['routines'] as Map<String, dynamic>?;
-          final title = row['quick_workout_name'] as String? ??
+          final title = row['routine_name'] as String? ??
               routine?['name'] as String? ??
               'Workout';
           final start = DateTime.tryParse(row['started_at'] as String? ?? '');
@@ -801,13 +801,6 @@ class WorkoutSummaryScreen extends ConsumerWidget {
   }
 }
 
-class ActiveWorkoutPlaceholderScreen extends StatelessWidget {
-  const ActiveWorkoutPlaceholderScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('Active Workout Screen')));
-}
-
 class ExerciseDetailScreen extends StatelessWidget {
   final String exerciseId;
   const ExerciseDetailScreen({super.key, required this.exerciseId});
@@ -843,13 +836,6 @@ class ImportDataScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const Scaffold(body: Center(child: Text('Import Data Screen')));
-}
-
-class AddGoalScreen extends StatelessWidget {
-  const AddGoalScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('Add Goal Screen')));
 }
 
 class GoalDetailScreen extends ConsumerWidget {
@@ -917,36 +903,6 @@ class GoalDetailScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-class ProgramManagerScreen extends StatelessWidget {
-  const ProgramManagerScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('Program Manager Screen')));
-}
-
-class ProgramTemplatesScreen extends StatelessWidget {
-  const ProgramTemplatesScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('Program Templates Screen')));
-}
-
-class ProgramTemplateDetailScreen extends StatelessWidget {
-  final String templateId;
-  const ProgramTemplateDetailScreen({super.key, required this.templateId});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-      body: Center(child: Text('Program Template Detail: $templateId')));
-}
-
-class ProgramPreviewScreen extends StatelessWidget {
-  final String programId;
-  const ProgramPreviewScreen({super.key, required this.programId});
-  @override
-  Widget build(BuildContext context) =>
-      Scaffold(body: Center(child: Text('Program Preview: $programId')));
 }
 
 class ChoosePlanScreen extends StatelessWidget {

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:fitzella/core/services/fitness_data_service.dart';
-import 'package:fitzella/features/progress/data/progress_mock_data.dart';
+import 'package:fitzella/features/progress/data/progress_models.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
 class GoalsTab extends ConsumerStatefulWidget {

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:fitzella/core/services/fitness_data_service.dart';
-import 'package:fitzella/features/progress/data/progress_mock_data.dart';
+import 'package:fitzella/features/progress/data/progress_models.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
 class HistoryTab extends ConsumerStatefulWidget {
@@ -23,6 +23,8 @@ class HistoryTab extends ConsumerStatefulWidget {
 }
 
 class _HistoryTabState extends ConsumerState<HistoryTab> {
+  static const _dateRanges = ['This week', 'This month', 'Last 3 months', 'All time'];
+
   String _dateRange = 'All time';
   final Set<String> _muscles = {};
   final Set<String> _routines = {};
@@ -31,18 +33,8 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
 
   List<ProgressWorkout> get _filtered {
     return _workouts.where((w) {
-      if (_muscles.isNotEmpty) {
-        final tags = w.exercises.join(' ').toLowerCase();
-        final matchMuscle = _muscles.any((m) {
-          final key = m.toLowerCase();
-          if (key == 'legs') return tags.contains('leg') || tags.contains('squat') || tags.contains('deadlift') || w.routineTag == 'Legs';
-          if (key == 'chest') return tags.contains('bench') || tags.contains('fly') || tags.contains('chest');
-          if (key == 'back') return tags.contains('row') || tags.contains('deadlift') || tags.contains('pulldown');
-          if (key == 'arms') return tags.contains('curl') || tags.contains('tricep');
-          if (key == 'shoulders') return tags.contains('press') && tags.contains('overhead') || tags.contains('face pull');
-          return false;
-        });
-        if (!matchMuscle) return false;
+      if (_muscles.isNotEmpty && !_muscles.any(w.muscles.contains)) {
+        return false;
       }
       if (_routines.isNotEmpty && !_routines.contains(w.routineTag)) return false;
       final now = DateTime.now();
@@ -160,6 +152,8 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
     final items = _filtered;
     final routineTags = _workouts.map((workout) => workout.routineTag).toSet().toList()
       ..sort();
+    final muscleGroups = _workouts.expand((workout) => workout.muscles).toSet().toList()
+      ..sort();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -169,7 +163,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ProgressMockData.dateRanges.map((r) {
+            children: _dateRanges.map((r) {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ProgressChip(
@@ -187,12 +181,12 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ProgressMockData.muscleGroups.map((m) {
+            children: muscleGroups.map((m) {
               final selected = _muscles.contains(m);
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ProgressChip(
-                  label: m,
+                  label: m[0].toUpperCase() + m.substring(1),
                   selected: selected,
                   onTap: () => setState(() {
                     if (selected) {
@@ -272,7 +266,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
     final completed = DateTime.parse(row['completed_at'] as String).toLocal();
     final routine = row['routines'] as Map<String, dynamic>?;
     final title = routine?['name'] as String? ??
-        row['quick_workout_name'] as String? ??
+        row['routine_name'] as String? ??
         'Quick Workout';
     final rawSets = (row['logged_sets'] as List? ?? const [])
         .cast<Map<String, dynamic>>();
@@ -283,6 +277,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
     }
     final sessionExercises = <SessionExercise>[];
     final names = <String>[];
+    final muscles = <String>{};
     var volume = 0.0;
     for (final entry in grouped.entries) {
       final first = entry.value.first;
@@ -291,6 +286,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
       final muscle = exercise['muscle_group'] as String? ?? '';
       final equipment = exercise['equipment_type'] as String? ?? '';
       names.add(name);
+      if (muscle.isNotEmpty) muscles.add(muscle.toLowerCase());
       final sets = entry.value.map((set) {
         final weight = (set['weight'] as num?)?.toDouble() ?? 0;
         final reps = (set['reps'] as num?)?.toInt() ?? 0;
@@ -323,6 +319,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
       routineTag: title,
       tagAccent: routine != null,
       exercises: names,
+      muscles: muscles,
       setsLogged: rawSets.length,
       duration: '${duration}m',
       volume: '${volume.toStringAsFixed(0)} lb',
