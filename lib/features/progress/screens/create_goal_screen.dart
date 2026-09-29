@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
 enum GoalType { strength, bodyComp, consistency, muscleGain }
 
-class CreateGoalScreen extends StatefulWidget {
+class CreateGoalScreen extends ConsumerStatefulWidget {
   const CreateGoalScreen({super.key});
 
   @override
-  State<CreateGoalScreen> createState() => _CreateGoalScreenState();
+  ConsumerState<CreateGoalScreen> createState() => _CreateGoalScreenState();
 }
 
-class _CreateGoalScreenState extends State<CreateGoalScreen> {
+class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   GoalType _type = GoalType.strength;
   int _bodyMetric = 0; // 0 body fat, 1 weight
-  final _targetCtrl = TextEditingController(text: '220');
-  final _exercise = 'Cable Fly';
-  DateTime _date = DateTime(2026, 9, 14);
+  final _targetCtrl = TextEditingController();
+  String? _exerciseId;
+  String? _exerciseName;
+  DateTime _date = DateTime.now();
+  bool _saving = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -24,9 +29,80 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     super.dispose();
   }
 
+  Future<void> _createGoal() async {
+    final target = double.tryParse(_targetCtrl.text.trim());
+    if (target == null || target <= 0) {
+      setState(() => _error = 'Enter a valid target.');
+      return;
+    }
+    if (_type == GoalType.strength && _exerciseId == null) {
+      setState(() => _error = 'Choose an exercise for your strength goal.');
+      return;
+    }
+    if (_type == GoalType.muscleGain) {
+      setState(() => _error =
+          'Lean-mass goals are not available until lean-mass measurements are supported.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      String goalType;
+      String title;
+      String? metric;
+      String? exerciseId;
+      double? startValue;
+      switch (_type) {
+        case GoalType.strength:
+          goalType = 'strength';
+          title = '${_exerciseName ?? 'Exercise'} · ${target.toStringAsFixed(0)} lb';
+          exerciseId = _exerciseId;
+          break;
+        case GoalType.bodyComp:
+          goalType = 'body_comp';
+          metric = _bodyMetric == 0 ? 'body_fat' : 'weight';
+          title = _bodyMetric == 0
+              ? 'Reach ${target.toStringAsFixed(1)}% body fat'
+              : 'Reach ${target.toStringAsFixed(1)} lb bodyweight';
+          startValue = await ref
+              .read(fitnessDataServiceProvider)
+              .fetchLatestMeasurementValue(metric);
+          break;
+        case GoalType.consistency:
+          goalType = 'consistency';
+          title = 'Train ${target.toStringAsFixed(0)} times per week';
+          break;
+        case GoalType.muscleGain:
+          return;
+      }
+      await ref.read(fitnessDataServiceProvider).createGoal(
+            type: goalType,
+            title: title,
+            targetValue: target,
+            exerciseId: exerciseId,
+            metric: metric,
+            startValue: startValue,
+            dueDate:
+                _type == GoalType.consistency ? null : _date,
+          );
+      ref.invalidate(goalsProvider);
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not create goal: $error';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
+    final exercises = ref.watch(exerciseCatalogProvider);
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
@@ -52,6 +128,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                     'New Goal',
                     style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800),
                   ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_error!, style: TextStyle(color: colors.danger)),
+                  ],
                   const SizedBox(height: 8),
                   Text('GOAL TYPE', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   const SizedBox(height: 10),
@@ -67,30 +147,42 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                         label: 'Strength',
                         icon: Icons.fitness_center,
                         selected: _type == GoalType.strength,
-                        onTap: () => setState(() => _type = GoalType.strength),
+                        onTap: () => setState(() {
+                          _type = GoalType.strength;
+                          _error = null;
+                        }),
                       ),
                       _TypeCard(
                         label: 'Body Comp',
                         icon: Icons.person_outline,
                         selected: _type == GoalType.bodyComp,
-                        onTap: () => setState(() => _type = GoalType.bodyComp),
+                        onTap: () => setState(() {
+                          _type = GoalType.bodyComp;
+                          _error = null;
+                        }),
                       ),
                       _TypeCard(
                         label: 'Consistency',
                         icon: Icons.water_drop_outlined,
                         selected: _type == GoalType.consistency,
-                        onTap: () => setState(() => _type = GoalType.consistency),
+                        onTap: () => setState(() {
+                          _type = GoalType.consistency;
+                          _error = null;
+                        }),
                       ),
                       _TypeCard(
                         label: 'Muscle Gain',
                         icon: Icons.sports_mma,
                         selected: _type == GoalType.muscleGain,
-                        onTap: () => setState(() => _type = GoalType.muscleGain),
+                        onTap: () => setState(() {
+                          _type = GoalType.muscleGain;
+                          _error = null;
+                        }),
                       ),
                     ],
                   ),
                   const SizedBox(height: 18),
-                  ..._fieldsForType(context),
+                  ..._fieldsForType(context, exercises),
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -117,13 +209,13 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _saving ? null : _createGoal,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.accent,
                         foregroundColor: colors.onAccent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('Create goal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      child: Text(_saving ? 'Saving…' : 'Create goal', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -135,13 +227,17 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
-  List<Widget> _fieldsForType(BuildContext context) {
+  List<Widget> _fieldsForType(BuildContext context, AsyncValue<List<Map<String, dynamic>>> exercises) {
     final colors = progressColors(context);
     switch (_type) {
       case GoalType.strength:
         return [
           _label(context, 'EXERCISE'),
-          _selectorField(context, _exercise, onTap: () {}),
+          _selectorField(
+            context,
+            _exerciseName ?? 'Choose exercise',
+            onTap: () => _chooseExercise(exercises),
+          ),
           const SizedBox(height: 14),
           _label(context, 'TARGET WEIGHT (LB)'),
           _inputField(context, _targetCtrl),
@@ -171,7 +267,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _bodyMetric == 0 ? 'Starting point: 16.4%' : 'Starting point: 175 lb',
+            'Current measurements are used as your starting point.',
             style: TextStyle(color: colors.textMuted, fontSize: 12),
           ),
           const SizedBox(height: 14),
@@ -188,7 +284,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
         ];
       case GoalType.muscleGain:
         return [
-          Text('Baseline lean mass: 151 lb', style: TextStyle(color: colors.textMuted, fontSize: 12)),
+          Text('Lean-mass measurements are not available yet.', style: TextStyle(color: colors.textMuted, fontSize: 12)),
           const SizedBox(height: 14),
           _label(context, 'TARGET LEAN MASS (LB)'),
           _inputField(context, _targetCtrl),
@@ -268,10 +364,39 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(2026, 1, 1),
+      firstDate: DateTime.now(),
       lastDate: DateTime(2030),
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _chooseExercise(
+      AsyncValue<List<Map<String, dynamic>>> exercises) async {
+    if (exercises.isLoading) return;
+    if (exercises.hasError) {
+      setState(() => _error = 'Could not load exercises: ${exercises.error}');
+      return;
+    }
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          children: (exercises.value ?? const [])
+              .map((item) => ListTile(
+                    title: Text(item['name'] as String),
+                    subtitle: Text(item['muscle_group'] as String? ?? ''),
+                    onTap: () => Navigator.pop(ctx, item),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _exerciseId = selected['id'] as String;
+        _exerciseName = selected['name'] as String;
+      });
+    }
   }
 }
 

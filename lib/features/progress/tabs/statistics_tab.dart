@@ -2,27 +2,72 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:fitzella/features/progress/data/progress_mock_data.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
-class StatisticsTab extends StatefulWidget {
+class StatisticsTab extends ConsumerStatefulWidget {
   const StatisticsTab({super.key});
 
   @override
-  State<StatisticsTab> createState() => _StatisticsTabState();
+  ConsumerState<StatisticsTab> createState() => _StatisticsTabState();
 }
 
-class _StatisticsTabState extends State<StatisticsTab> {
+class _StatisticsTabState extends ConsumerState<StatisticsTab> {
   int _rangeIndex = 2; // 3M
   final _ranges = const ['1W', '1M', '3M', '6M', '1Y', 'All'];
 
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
-    final percents = ProgressMockData.musclePercents;
-    final values = ProgressMockData.muscleDistribution;
+    final history = ref.watch(workoutHistoryProvider);
+    if (history.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (history.hasError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Could not load statistics: ${history.error}',
+                style: TextStyle(color: colors.textPrimary)),
+            TextButton(
+              onPressed: () => ref.invalidate(workoutHistoryProvider),
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+    }
+    const muscles = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
+    final now = DateTime.now();
+    final days = const [7, 30, 90, 180, 365, null][_rangeIndex];
+    final cutoff = days == null ? null : now.subtract(Duration(days: days));
+    final values = {for (final muscle in muscles) muscle: 0};
+    for (final session
+        in history.value ?? const <Map<String, dynamic>>[]) {
+      final date = DateTime.tryParse(session['started_at'] as String? ?? '');
+      if (cutoff != null && (date == null || date.isBefore(cutoff))) continue;
+      for (final set in (session['logged_sets'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()) {
+        final muscle = ((set['exercises'] as Map<String, dynamic>?)?[
+                    'muscle_group'] as String? ??
+                '')
+            .toLowerCase();
+        final key = muscles.firstWhere(
+          (item) => muscle.contains(item.toLowerCase()),
+          orElse: () => '',
+        );
+        if (key.isNotEmpty) values[key] = values[key]! + 1;
+      }
+    }
+    final total = values.values.fold<int>(0, (sum, value) => sum + value);
+    final percents = {
+      for (final muscle in muscles)
+        muscle: total == 0 ? 0 : (values[muscle]! * 100 / total).round()
+    };
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -81,12 +126,8 @@ class _StatisticsTabState extends State<StatisticsTab> {
                     dataSets: [
                       RadarDataSet(
                         dataEntries: [
-                          RadarEntry(value: values['Chest']!.toDouble()),
-                          RadarEntry(value: values['Back']!.toDouble()),
-                          RadarEntry(value: values['Shoulders']!.toDouble()),
-                          RadarEntry(value: values['Arms']!.toDouble()),
-                          RadarEntry(value: values['Legs']!.toDouble()),
-                          RadarEntry(value: values['Core']!.toDouble()),
+                          for (final muscle in muscles)
+                            RadarEntry(value: values[muscle]!.toDouble()),
                         ],
                         fillColor: colors.accent.withValues(alpha: 0.25),
                         borderColor: colors.accent,
@@ -103,9 +144,8 @@ class _StatisticsTabState extends State<StatisticsTab> {
                     tickCount: 4,
                     titleTextStyle: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
                     getTitle: (index, angle) {
-                      const titles = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
-                      final v = values[titles[index]]!;
-                      return RadarChartTitle(text: '${titles[index]}\n$v', angle: angle);
+                      final v = values[muscles[index]]!;
+                      return RadarChartTitle(text: '${muscles[index]}\n$v', angle: angle);
                     },
                   ),
                 ),

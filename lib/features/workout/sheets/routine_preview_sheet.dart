@@ -21,8 +21,19 @@ class _RoutinePreviewSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
-    final exercises = day.exerciseIds.map(WorkoutCatalog.byId).toList();
-    final tag = day.tag.isEmpty ? exercises.map((e) => e.muscle).toSet().join(' · ') : day.tag;
+    final exercises = day.exerciseNames.isNotEmpty
+        ? day.exerciseNames
+            .map((name) => WorkoutExerciseDef(
+                  id: '',
+                  name: name,
+                  muscle: '',
+                  equipment: '',
+                ))
+            .toList()
+        : day.exerciseIds.map(WorkoutCatalog.byId).toList();
+    final tag = day.tag.isEmpty
+        ? '${exercises.length} exercises'
+        : day.tag;
 
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
@@ -56,7 +67,7 @@ class _RoutinePreviewSheet extends ConsumerWidget {
                 children: [
                   Icon(Icons.calendar_today, size: 14, color: colors.textMuted),
                   const SizedBox(width: 6),
-                  Text('Last: not yet', style: TextStyle(color: colors.textMuted, fontSize: 13)),
+                  Text('${exercises.length} exercises', style: TextStyle(color: colors.textMuted, fontSize: 13)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -84,8 +95,8 @@ class _RoutinePreviewSheet extends ConsumerWidget {
                         decoration: BoxDecoration(color: colors.background, borderRadius: BorderRadius.circular(10)),
                         child: Icon(Icons.fitness_center, color: colors.accent, size: 20),
                       ),
-                      title: Text('${e.defaultSets} × ${e.name}', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                      subtitle: Text(e.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                      title: Text(e.name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                      subtitle: Text(e.muscle.isEmpty ? 'Routine exercise' : e.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                       trailing: Icon(Icons.info_outline, color: colors.textMuted),
                     );
                   },
@@ -96,8 +107,16 @@ class _RoutinePreviewSheet extends ConsumerWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    ref.read(activeWorkoutProvider.notifier).startFromDay(day, WorkoutCatalog.exercises);
+                  onPressed: () async {
+                    final notifier = ref.read(activeWorkoutProvider.notifier);
+                    await notifier.startFromDay(day, WorkoutCatalog.exercises);
+                    if (!context.mounted) return;
+                    if (notifier.currentState.sessionId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(notifier.currentState.backendError ?? 'Could not start workout.')),
+                      );
+                      return;
+                    }
                     Navigator.pop(context);
                     context.push('/workout/active');
                   },

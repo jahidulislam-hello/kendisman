@@ -81,7 +81,7 @@ class WorkoutSessionNotifier extends _$WorkoutSessionNotifier {
   }
 
   Future<void> submitExercise(TodaysWorkoutItem item, List<SetEntry> sets) async {
-    final sessionId = await ensureSession();
+    await ensureSession();
     // TODO: Log sets to database
     
     final completed = {...state.completedExerciseIds, item.exerciseId};

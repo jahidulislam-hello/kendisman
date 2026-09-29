@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -139,32 +140,60 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     final notifier = ref.read(authNotifierProvider.notifier);
-    await notifier.updateUsername(_name.text.trim());
+    final usernameResult = await notifier.updateUsername(_name.text.trim());
+    final usernameError = usernameResult.when(
+      success: (_) => null,
+      error: (message) => message,
+    );
+    if (usernameError != null) {
+      _showSaveError(usernameError);
+      return;
+    }
 
     final sex = switch (_gender.toLowerCase()) {
       'male' => UserSex.male,
       'female' => UserSex.female,
       _ => null,
     };
-    await notifier.updateSex(sex);
+    final sexResult = await notifier.updateSex(sex);
+    final sexError = sexResult.when(
+      success: (_) => null,
+      error: (message) => message,
+    );
+    if (sexError != null) {
+      _showSaveError(sexError);
+      return;
+    }
 
     DateTime? parsed;
     try {
       parsed = DateFormat('MMM d, yyyy').parse(_dob);
     } catch (_) {}
+    if (_dob.trim().isNotEmpty && parsed == null) {
+      _showSaveError('Enter your date of birth in a valid format.');
+      return;
+    }
     if (parsed != null) {
       final iso =
           '${parsed.year.toString().padLeft(4, '0')}-'
           '${parsed.month.toString().padLeft(2, '0')}-'
           '${parsed.day.toString().padLeft(2, '0')}';
-      await notifier.updateDateOfBirth(iso);
+      final dateResult = await notifier.updateDateOfBirth(iso);
+      final dateError = dateResult.when(
+        success: (_) => null,
+        error: (message) => message,
+      );
+      if (dateError != null) {
+        _showSaveError(dateError);
+        return;
+      }
     }
 
     final prefs = ref.read(profilePrefsServiceProvider);
     final existing = prefs.load() ?? const CachedProfile();
     final updated = existing.copyWith(
       username: _name.text.trim().isEmpty ? existing.username : _name.text.trim(),
-      email: _email.text.trim().isEmpty ? existing.email : _email.text.trim(),
+      email: existing.email ?? ref.read(currentProfileProvider)?.email,
       sex: sex?.name ?? existing.sex,
       dateOfBirth: parsed == null
           ? existing.dateOfBirth
@@ -178,6 +207,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
     Navigator.pop(context);
+  }
+
+  void _showSaveError(String message) {
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Could not save profile: $message')),
+    );
   }
 
   @override
@@ -484,18 +521,18 @@ class AccountScreen extends ConsumerWidget {
                         icon: Icons.mail_outline,
                         title: 'Email',
                         subtitle: email,
-                        onTap: () {},
+                        onTap: null,
                       ),
                       ProfileSettingsTile(
                         icon: Icons.person_outline,
                         title: 'Username',
                         subtitle: username,
-                        onTap: () {},
+                        onTap: () => context.push('/profile/edit'),
                       ),
                       ProfileSettingsTile(
                         icon: Icons.lock_outline,
                         title: 'Change Password',
-                        onTap: () {},
+                        onTap: () => context.push('/auth/forgot-password'),
                       ),
                     ],
                   ),
@@ -509,7 +546,7 @@ class AccountScreen extends ConsumerWidget {
                         iconBg: colors.danger.withValues(alpha: 0.12),
                         titleColor: colors.danger,
                         trailing: const SizedBox.shrink(),
-                        onTap: () {},
+                        onTap: () => _confirmDelete(context, ref),
                       ),
                     ],
                   ),
@@ -523,6 +560,37 @@ class AccountScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your profile, routines, workout history, goals, and measurements.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final result = await ref.read(authNotifierProvider.notifier).deleteAccount();
+    if (!context.mounted) return;
+    result.when(
+      success: (_) => context.go('/welcome'),
+      error: (message) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete account: $message')),
       ),
     );
   }

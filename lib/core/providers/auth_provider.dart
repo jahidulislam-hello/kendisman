@@ -33,6 +33,8 @@ abstract class AuthState with _$AuthState {
 /// Auth notifier managing authentication state
 @riverpod
 class AuthNotifier extends _$AuthNotifier {
+  int _profileLoadVersion = 0;
+
   @override
   AuthState build() {
     final client = ref.read(supabaseClientProvider);
@@ -44,6 +46,7 @@ class AuthNotifier extends _$AuthNotifier {
         state = state.copyWith(session: next, loading: true);
         _loadProfile(next.user.id);
       } else {
+        _profileLoadVersion++;
         _clearLocalProfile();
         state = state.copyWith(
           session: null,
@@ -63,7 +66,15 @@ class AuthNotifier extends _$AuthNotifier {
   }
 
   Future<void> _loadProfile(String userId) async {
+    final loadVersion = ++_profileLoadVersion;
     try {
+      final cached = ref.read(profilePrefsServiceProvider).load();
+      if (cached != null && cached.userId != userId) {
+        await ref.read(profilePrefsServiceProvider).clear();
+        ref.read(cachedProfileProvider.notifier).state = null;
+      }
+      if (loadVersion != _profileLoadVersion) return;
+
       var response = await ref
           .read(supabaseClientProvider)
           .from('users')
@@ -89,7 +100,9 @@ class AuthNotifier extends _$AuthNotifier {
       }
 
       if (response == null) {
-        state = state.copyWith(profile: null, hasProgram: false, loading: false);
+        if (loadVersion != _profileLoadVersion) return;
+        state =
+            state.copyWith(profile: null, hasProgram: false, loading: false);
         return;
       }
 
@@ -97,6 +110,7 @@ class AuthNotifier extends _$AuthNotifier {
       final hasProgram = await _checkHasProgram(userId);
       final weightKg = await _latestWeightKg(userId);
 
+      if (loadVersion != _profileLoadVersion) return;
       state = state.copyWith(
         profile: profile,
         hasProgram: hasProgram,
@@ -104,10 +118,11 @@ class AuthNotifier extends _$AuthNotifier {
       );
       await _syncLocalProfile(profile, weightKg: weightKg);
     } catch (e) {
+      if (loadVersion != _profileLoadVersion) return;
       _authDebug('_loadProfile failed', e);
       // Keep session; fall back to SharedPreferences cache if present.
       final cached = ref.read(profilePrefsServiceProvider).load();
-      if (cached != null) {
+      if (cached?.userId == userId) {
         ref.read(cachedProfileProvider.notifier).state = cached;
       }
       state = state.copyWith(loading: false);
@@ -133,9 +148,11 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  Future<void> _syncLocalProfile(UserProfile profile, {double? weightKg}) async {
+  Future<void> _syncLocalProfile(UserProfile profile,
+      {double? weightKg}) async {
     final prefs = ref.read(profilePrefsServiceProvider);
-    final existing = prefs.load();
+    final stored = prefs.load();
+    final existing = stored?.userId == profile.id ? stored : null;
     final cached = CachedProfile(
       userId: profile.id,
       email: profile.email,
@@ -146,9 +163,9 @@ class AuthNotifier extends _$AuthNotifier {
       weightKg: weightKg ?? existing?.weightKg,
       useMetric: profile.unitPreference == UnitPreference.kg,
       goal: existing?.goal ?? profile.goal?.value,
-      equipment: existing?.equipment,
       experience: existing?.experience ?? profile.experienceLevel?.name,
       frequency: profile.trainingDaysPerWeek ?? existing?.frequency,
+      equipment: profile.equipmentPreference ?? existing?.equipment,
       onboarded: profile.onboarded,
       photoUrl: profile.photoUrl ?? existing?.photoUrl,
     );
@@ -166,39 +183,39 @@ class AuthNotifier extends _$AuthNotifier {
     if (state.session == null) return AuthResult.error('Not signed in');
 
     final userId = state.session!.user.id;
-    final email = state.session!.user.email ?? state.profile?.email ?? '';
+    final profile = state.profile?.id == userId ? state.profile : null;
+    final email = state.session!.user.email ?? profile?.email ?? '';
     final sex = _mapSex(draft.gender);
     final goal = _mapGoal(draft.goal);
     final experience = _mapExperience(draft.experience);
-    final dob =
-        '${draft.birthday.year.toString().padLeft(4, '0')}-'
+    final dob = '${draft.birthday.year.toString().padLeft(4, '0')}-'
         '${draft.birthday.month.toString().padLeft(2, '0')}-'
         '${draft.birthday.day.toString().padLeft(2, '0')}';
     final heightCm = draft.heightCm.round();
-    final username = state.profile?.username ??
+    final username = profile?.username ??
         (email.contains('@') ? email.split('@').first : 'athlete');
     final unit = draft.useMetric ? UnitPreference.kg : UnitPreference.lb;
     final weightLb = draft.weightKg * 2.2046226218;
 
     try {
-      await ref.read(supabaseClientProvider).from('users').update({
-        'username': username,
-        'sex': sex?.value,
-        'date_of_birth': dob,
-        'height_cm': heightCm,
-        'unit_preference': unit.value,
-        'goal': goal?.value,
-        'experience_level': experience?.name,
-        'training_days_per_week': draft.frequency,
-        'referral_source': draft.equipment,
-        'onboarded': true,
-      }).eq('id', userId);
-
-      await ref.read(supabaseClientProvider).from('body_measurements').insert({
-        'user_id': userId,
-        'measured_on': DateTime.now().toUtc().toIso8601String().split('T').first,
-        'weight_lb': double.parse(weightLb.toStringAsFixed(2)),
-      });
+      final completed = await ref.read(supabaseClientProvider).rpc(
+        'complete_onboarding',
+        params: {
+          'p_username': username,
+          'p_sex': sex?.value,
+          'p_date_of_birth': dob,
+          'p_height_cm': heightCm,
+          'p_unit_preference': unit.value,
+          'p_goal': goal?.value,
+          'p_experience_level': experience?.name,
+          'p_training_days_per_week': draft.frequency,
+          'p_equipment_preference': draft.equipment,
+          'p_weight_lb': double.parse(weightLb.toStringAsFixed(2)),
+        },
+      );
+      if (completed != true) {
+        throw StateError('Supabase did not confirm onboarding completion');
+      }
 
       final cached = CachedProfile(
         userId: userId,
@@ -217,12 +234,16 @@ class AuthNotifier extends _$AuthNotifier {
       );
       await ref.read(profilePrefsServiceProvider).save(cached);
       ref.read(cachedProfileProvider.notifier).state = cached;
+      if (state.profile?.id == userId) {
+        state =
+            state.copyWith(profile: state.profile!.copyWith(onboarded: true));
+      }
 
       await _loadProfile(userId);
       return AuthResult.success();
     } catch (e) {
       _authDebug('completeOnboarding failed', e);
-      // Still keep local cache so screens work even if remote write fails.
+      // Keep the draft for retry, but never treat an unsynced profile as complete.
       final cached = CachedProfile(
         userId: userId,
         email: email,
@@ -236,14 +257,13 @@ class AuthNotifier extends _$AuthNotifier {
         equipment: draft.equipment,
         experience: draft.experience,
         frequency: draft.frequency,
-        onboarded: true,
+        onboarded: false,
       );
       await ref.read(profilePrefsServiceProvider).save(cached);
       ref.read(cachedProfileProvider.notifier).state = cached;
-      if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(onboarded: true));
-      }
-      return AuthResult.error('Saved locally; cloud sync failed. Try again later.');
+      return AuthResult.error(
+        'Could not save your setup to the server. Check your connection and try again.',
+      );
     }
   }
 
@@ -302,14 +322,8 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  Future<AuthResult> signUp(String email, String password, {String? referralCode}) async {
-    // Dev path: create + confirm via Admin API so signup never hits email rate limits
-    // or the dashboard Site URL (localhost) redirect problem.
-    if (kDebugMode && SupabaseConfig.hasSecretKey) {
-      _authDebug('signUp (debug/admin) → $email');
-      return _signUpBypassEmailRateLimit(email, password);
-    }
-
+  Future<AuthResult> signUp(String email, String password,
+      {String? referralCode}) async {
     try {
       _authDebug('signUp → $email redirect=${SupabaseConfig.authCallbackUrl}');
       final response = await ref.read(supabaseClientProvider).auth.signUp(
@@ -327,7 +341,8 @@ class AuthNotifier extends _$AuthNotifier {
       // Check if user already exists (enumeration protection)
       if (response.user?.identities?.isEmpty ?? false) {
         _authDebug('signUp email already registered');
-        return AuthResult.error('This email is already registered. Please sign in.');
+        return AuthResult.error(
+            'This email is already registered. Please sign in.');
       }
 
       _authDebug('signUp needs email verification user=${response.user?.id}');
@@ -335,80 +350,21 @@ class AuthNotifier extends _$AuthNotifier {
     } on AuthException catch (e) {
       _authDebug('signUp AuthException', e.message);
       final msg = e.message.toLowerCase();
-      if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit')) {
-        _authDebug('signUp rate-limited → admin bypass (no email send)');
-        return _signUpBypassEmailRateLimit(email, password);
+      if (msg.contains('rate limit') ||
+          msg.contains('over_email_send_rate_limit')) {
+        return AuthResult.error(
+          'Email rate limit reached. Wait a few minutes, then try signing up again.',
+        );
       }
-      if (msg.contains('already registered') || msg.contains('already been registered')) {
-        return AuthResult.error('This email is already registered. Please sign in.');
+      if (msg.contains('already registered') ||
+          msg.contains('already been registered')) {
+        return AuthResult.error(
+            'This email is already registered. Please sign in.');
       }
       return AuthResult.error(e.message);
     } catch (e) {
       _authDebug('signUp failed', e);
       return AuthResult.error('Failed to create account');
-    }
-  }
-
-  /// Creates/confirms the user with Admin API so signup can continue without sending email.
-  Future<AuthResult> _signUpBypassEmailRateLimit(String email, String password) async {
-    if (!SupabaseConfig.hasSecretKey) {
-      return AuthResult.error(
-        'Email rate limit reached and no admin bypass configured. Use Sign In if you already registered.',
-      );
-    }
-
-    try {
-      final admin = SupabaseClient(SupabaseConfig.url, SupabaseConfig.secretKey);
-      try {
-        await admin.auth.admin.createUser(
-          AdminUserAttributes(
-            email: email,
-            password: password,
-            emailConfirm: true,
-          ),
-        );
-        _authDebug('admin createUser ok for $email');
-      } catch (createErr) {
-        _authDebug('admin createUser failed (may already exist)', createErr);
-        // Confirm existing user + set password so sign-in works.
-        final listed = await admin.auth.admin.listUsers(perPage: 1000);
-        User? existing;
-        for (final u in listed) {
-          if (u.email?.toLowerCase() == email.toLowerCase()) {
-            existing = u;
-            break;
-          }
-        }
-        if (existing == null) {
-          return AuthResult.error(
-            'Email rate limit reached and could not create account. Try Sign In or another email.',
-          );
-        }
-        await admin.auth.admin.updateUserById(
-          existing.id,
-          attributes: AdminUserAttributes(
-            emailConfirm: true,
-            password: password,
-          ),
-        );
-        _authDebug('admin confirmed existing user ${existing.id}');
-      }
-
-      final signedIn = await ref.read(supabaseClientProvider).auth.signInWithPassword(
-            email: email,
-            password: password,
-          );
-      if (signedIn.session != null) {
-        await _loadProfile(signedIn.session!.user.id);
-        _authDebug('bypass success → session ready');
-        return AuthResult.success(needsVerification: false);
-      }
-      return AuthResult.error('Account ready but sign-in failed. Try Sign In.');
-    } catch (e) {
-      _authDebug('signUp bypass failed', e);
-      return AuthResult.error(
-        'Email rate limit reached. Try Sign In with this email, or wait and retry.',
-      );
     }
   }
 
@@ -418,7 +374,7 @@ class AuthNotifier extends _$AuthNotifier {
           .read(supabaseClientProvider)
           .auth
           .verifyOTP(email: email, token: token, type: OtpType.signup);
-      
+
       if (response.session != null) {
         await _loadProfile(response.session!.user.id);
         return AuthResult.success();
@@ -442,7 +398,8 @@ class AuthNotifier extends _$AuthNotifier {
     } on AuthException catch (e) {
       _authDebug('resendSignupOtp AuthException', e.message);
       final msg = e.message.toLowerCase();
-      if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit')) {
+      if (msg.contains('rate limit') ||
+          msg.contains('over_email_send_rate_limit')) {
         return AuthResult.error(
           'Email rate limit reached. Wait 30–60 seconds, then try again.',
         );
@@ -471,7 +428,8 @@ class AuthNotifier extends _$AuthNotifier {
     } on AuthException catch (e) {
       _authDebug('signIn AuthException', e.message);
       final msg = e.message.toLowerCase();
-      if (msg.contains('email not confirmed') || msg.contains('not confirmed')) {
+      if (msg.contains('email not confirmed') ||
+          msg.contains('not confirmed')) {
         return AuthResult.error(
           'Confirm your email first. Check your inbox for the Fitzella code.',
         );
@@ -500,7 +458,8 @@ class AuthNotifier extends _$AuthNotifier {
     } on AuthException catch (e) {
       _authDebug('resetPasswordForEmail AuthException', e.message);
       final msg = e.message.toLowerCase();
-      if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit')) {
+      if (msg.contains('rate limit') ||
+          msg.contains('over_email_send_rate_limit')) {
         return AuthResult.error(
           'Email rate limit reached. Wait 30–60 seconds, then try again.',
         );
@@ -519,7 +478,7 @@ class AuthNotifier extends _$AuthNotifier {
           .read(supabaseClientProvider)
           .auth
           .verifyOTP(email: email, token: token, type: OtpType.recovery);
-      
+
       if (response.session != null) {
         return AuthResult.success();
       }
@@ -537,7 +496,7 @@ class AuthNotifier extends _$AuthNotifier {
           .read(supabaseClientProvider)
           .auth
           .updateUser(UserAttributes(password: newPassword));
-      
+
       if (response.user != null) {
         state = state.copyWith(pendingPasswordRecovery: false);
         // Force a fresh sign-in with the new password.
@@ -564,7 +523,7 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> deleteAccount() async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref.read(supabaseClientProvider).functions.invoke('delete-account');
       await signOut();
@@ -576,14 +535,13 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateMode(UserMode mode) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'mode': mode.value})
-          .eq('id', state.session!.user.id);
-      
+          .update({'mode': mode.value}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
         state = state.copyWith(profile: state.profile!.copyWith(mode: mode));
       }
@@ -595,16 +553,14 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateUnitPreference(UnitPreference unit) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
-      await ref
-          .read(supabaseClientProvider)
-          .from('users')
-          .update({'unit_preference': unit.value})
-          .eq('id', state.session!.user.id);
-      
+      await ref.read(supabaseClientProvider).from('users').update(
+          {'unit_preference': unit.value}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(unitPreference: unit));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(unitPreference: unit));
       }
       return AuthResult.success();
     } catch (e) {
@@ -614,16 +570,17 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateThemePreference(ThemePreference preference) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'theme_preference': preference.value})
-          .eq('id', state.session!.user.id);
-      
+          .update({'theme_preference': preference.value}).eq(
+              'id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(themePreference: preference));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(themePreference: preference));
       }
       return AuthResult.success();
     } catch (e) {
@@ -633,14 +590,13 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateSex(UserSex? sex) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'sex': sex?.value})
-          .eq('id', state.session!.user.id);
-      
+          .update({'sex': sex?.value}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
         state = state.copyWith(profile: state.profile!.copyWith(sex: sex));
       }
@@ -652,17 +608,19 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateUsername(String username) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       final trimmed = username.trim();
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'username': trimmed.isEmpty ? null : trimmed})
-          .eq('id', state.session!.user.id);
-      
+          .update({'username': trimmed.isEmpty ? null : trimmed}).eq(
+              'id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(username: trimmed.isEmpty ? null : trimmed));
+        state = state.copyWith(
+            profile: state.profile!
+                .copyWith(username: trimmed.isEmpty ? null : trimmed));
       }
       return AuthResult.success();
     } catch (e) {
@@ -672,16 +630,16 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateDateOfBirth(String? dob) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'date_of_birth': dob})
-          .eq('id', state.session!.user.id);
-      
+          .update({'date_of_birth': dob}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(dateOfBirth: dob));
+        state =
+            state.copyWith(profile: state.profile!.copyWith(dateOfBirth: dob));
       }
       return AuthResult.success();
     } catch (e) {
@@ -691,16 +649,16 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updatePhotoUrl(String? photoUrl) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'photo_url': photoUrl})
-          .eq('id', state.session!.user.id);
-      
+          .update({'photo_url': photoUrl}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(photoUrl: photoUrl));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(photoUrl: photoUrl));
       }
 
       final prefs = ref.read(profilePrefsServiceProvider);
@@ -792,16 +750,16 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateHeightCm(int? heightCm) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'height_cm': heightCm})
-          .eq('id', state.session!.user.id);
-      
+          .update({'height_cm': heightCm}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(heightCm: heightCm));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(heightCm: heightCm));
       }
       return AuthResult.success();
     } catch (e) {
@@ -817,26 +775,30 @@ class AuthNotifier extends _$AuthNotifier {
     String? referralSource,
   }) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       final updates = <String, dynamic>{};
       if (goal != null) updates['goal'] = goal.value;
-      if (experienceLevel != null) updates['experience_level'] = experienceLevel.value;
-      if (trainingDaysPerWeek != null) updates['training_days_per_week'] = trainingDaysPerWeek;
+      if (experienceLevel != null)
+        updates['experience_level'] = experienceLevel.value;
+      if (trainingDaysPerWeek != null)
+        updates['training_days_per_week'] = trainingDaysPerWeek;
       if (emailOptIn != null) updates['email_opt_in'] = emailOptIn;
       if (referralSource != null) updates['referral_source'] = referralSource;
-      
+
       await ref
           .read(supabaseClientProvider)
           .from('users')
           .update(updates)
           .eq('id', state.session!.user.id);
-      
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(
+        state = state.copyWith(
+            profile: state.profile!.copyWith(
           goal: goal ?? state.profile!.goal,
           experienceLevel: experienceLevel ?? state.profile!.experienceLevel,
-          trainingDaysPerWeek: trainingDaysPerWeek ?? state.profile!.trainingDaysPerWeek,
+          trainingDaysPerWeek:
+              trainingDaysPerWeek ?? state.profile!.trainingDaysPerWeek,
           emailOptIn: emailOptIn ?? state.profile!.emailOptIn,
           referralSource: referralSource ?? state.profile!.referralSource,
         ));
@@ -849,16 +811,16 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> markOnboarded() async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
       await ref
           .read(supabaseClientProvider)
           .from('users')
-          .update({'onboarded': true})
-          .eq('id', state.session!.user.id);
-      
+          .update({'onboarded': true}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(onboarded: true));
+        state =
+            state.copyWith(profile: state.profile!.copyWith(onboarded: true));
       }
       return AuthResult.success();
     } catch (e) {
@@ -868,16 +830,14 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateNotificationsEnabled(bool enabled) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
-      await ref
-          .read(supabaseClientProvider)
-          .from('users')
-          .update({'notifications_enabled': enabled})
-          .eq('id', state.session!.user.id);
-      
+      await ref.read(supabaseClientProvider).from('users').update(
+          {'notifications_enabled': enabled}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(notificationsEnabled: enabled));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(notificationsEnabled: enabled));
       }
       return AuthResult.success();
     } catch (e) {
@@ -887,35 +847,54 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> updateRestTimerEnabled(bool enabled) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
-      await ref
-          .read(supabaseClientProvider)
-          .from('users')
-          .update({'rest_timer_enabled': enabled})
-          .eq('id', state.session!.user.id);
-      
+      await ref.read(supabaseClientProvider).from('users').update(
+          {'rest_timer_enabled': enabled}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(restTimerEnabled: enabled));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(restTimerEnabled: enabled));
       }
+
       return AuthResult.success();
     } catch (e) {
       return AuthResult.error('Failed to update rest timer');
     }
   }
 
+  Future<AuthResult> updateRestTimerDefaultOverride(int? seconds) async {
+    if (state.session == null) return AuthResult.error('Not signed in');
+    if (seconds != null && (seconds < 0 || seconds > 600)) {
+      return AuthResult.error('Rest timer must be between 0 and 600 seconds');
+    }
+    try {
+      await ref.read(supabaseClientProvider).from('users').update({
+        'rest_timer_default_override_seconds': seconds,
+      }).eq('id', state.session!.user.id);
+      if (state.profile != null) {
+        state = state.copyWith(
+          profile: state.profile!
+              .copyWith(restTimerDefaultOverrideSeconds: seconds),
+        );
+      }
+      return AuthResult.success();
+    } catch (error) {
+      _authDebug('updateRestTimerDefaultOverride failed', error);
+      return AuthResult.error('Failed to update rest timer duration');
+    }
+  }
+
   Future<AuthResult> updateRpeTrackingEnabled(bool enabled) async {
     if (state.session == null) return AuthResult.error('Not signed in');
-    
+
     try {
-      await ref
-          .read(supabaseClientProvider)
-          .from('users')
-          .update({'rpe_tracking_enabled': enabled})
-          .eq('id', state.session!.user.id);
-      
+      await ref.read(supabaseClientProvider).from('users').update(
+          {'rpe_tracking_enabled': enabled}).eq('id', state.session!.user.id);
+
       if (state.profile != null) {
-        state = state.copyWith(profile: state.profile!.copyWith(rpeTrackingEnabled: enabled));
+        state = state.copyWith(
+            profile: state.profile!.copyWith(rpeTrackingEnabled: enabled));
       }
       return AuthResult.success();
     } catch (e) {
@@ -927,7 +906,8 @@ class AuthNotifier extends _$AuthNotifier {
 /// Auth result wrapper
 @freezed
 abstract class AuthResult with _$AuthResult {
-  const factory AuthResult.success({@Default(false) bool needsVerification}) = _AuthSuccess;
+  const factory AuthResult.success({@Default(false) bool needsVerification}) =
+      _AuthSuccess;
   const factory AuthResult.error(String message) = _AuthError;
 }
 
@@ -945,4 +925,5 @@ bool authLoading(Ref ref) => ref.watch(authNotifierProvider).loading;
 bool? hasProgram(Ref ref) => ref.watch(authNotifierProvider).hasProgram;
 
 @riverpod
-bool pendingPasswordRecovery(Ref ref) => ref.watch(authNotifierProvider).pendingPasswordRecovery;
+bool pendingPasswordRecovery(Ref ref) =>
+    ref.watch(authNotifierProvider).pendingPasswordRecovery;

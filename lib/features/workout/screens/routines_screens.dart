@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 
 class YourRoutinesScreen extends ConsumerWidget {
@@ -11,7 +12,7 @@ class YourRoutinesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
-    final plans = ref.watch(plansProvider);
+    final programs = ref.watch(routineLibraryProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -37,11 +38,71 @@ class YourRoutinesScreen extends ConsumerWidget {
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                itemCount: plans.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, i) {
+              child: programs.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Could not load your routines: $error',
+                            style: TextStyle(color: colors.textPrimary),
+                            textAlign: TextAlign.center),
+                        TextButton(
+                          onPressed: () => ref.invalidate(routineLibraryProvider),
+                          child: const Text('Try again'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                data: (rows) {
+                  final plans = rows.map((row) {
+                    final routines = (row['routines'] as List? ?? const [])
+                        .cast<Map<String, dynamic>>()
+                      ..sort((a, b) => (a['day_index'] as int? ?? 0)
+                          .compareTo(b['day_index'] as int? ?? 0));
+                    return PlanDef(
+                      id: row['id'] as String,
+                      name: row['name'] as String? ?? 'Program',
+                      active: row['is_active'] as bool? ?? false,
+                      aiGenerated: row['is_ai_generated'] as bool? ?? false,
+                      days: routines.map((routine) {
+                        final exercises =
+                            (routine['routine_exercises'] as List? ?? const [])
+                                .cast<Map<String, dynamic>>()
+                              ..sort((a, b) =>
+                                  (a['order_index'] as int? ?? 0)
+                                      .compareTo(b['order_index'] as int? ?? 0));
+                        return RoutineDay(
+                          id: routine['id'] as String,
+                          name: routine['name'] as String? ?? 'Workout',
+                          exerciseIds: exercises
+                              .map((item) => item['exercise_id'] as String)
+                              .toList(),
+                          exerciseNames: exercises
+                              .map((item) =>
+                                  (item['exercises'] as Map<String, dynamic>?)?['name'] as String? ??
+                                  'Exercise')
+                              .toList(),
+                          tag: '',
+                        );
+                      }).toList(),
+                    );
+                  }).toList();
+                  if (plans.isEmpty) {
+                    return Center(
+                      child: Text('No routines yet. Build a routine to get started.',
+                          style: TextStyle(color: colors.textSecondary),
+                          textAlign: TextAlign.center),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                    itemCount: plans.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) {
                   final plan = plans[i];
                   return Container(
                     padding: const EdgeInsets.all(16),
@@ -80,7 +141,19 @@ class YourRoutinesScreen extends ConsumerWidget {
                           children: [
                             if (!plan.active)
                               Expanded(
-                                child: _btn(colors, 'Activate', () => ref.read(plansProvider.notifier).activate(plan.id)),
+                                child: _btn(colors, 'Activate', () async {
+                                  try {
+                                    await ref.read(fitnessDataServiceProvider).activateProgram(plan.id);
+                                    ref.invalidate(routineLibraryProvider);
+                                    ref.invalidate(homeSummaryProvider);
+                                  } catch (error) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Could not activate routine: $error')),
+                                      );
+                                    }
+                                  }
+                                }),
                               ),
                             if (!plan.active) const SizedBox(width: 8),
                             Expanded(
@@ -94,6 +167,8 @@ class YourRoutinesScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  );
+                    },
                   );
                 },
               ),
@@ -149,7 +224,14 @@ class _DayEx {
   String r1;
   String r2;
   String weight;
-  _DayEx({required this.id, required this.name, this.sets = '3', this.r1 = '8', this.r2 = '8', this.weight = '20'});
+  _DayEx({
+    required this.id,
+    required this.name,
+    required this.sets,
+    required this.r1,
+    required this.r2,
+    required this.weight,
+  });
 }
 
 class _Day {
@@ -159,15 +241,56 @@ class _Day {
 }
 
 class _WorkoutBuildRoutineScreenState extends ConsumerState<WorkoutBuildRoutineScreen> {
-  final name = TextEditingController(text: 'Jgh');
+  final name = TextEditingController();
+  bool _saving = false;
+  String? _saveError;
   final days = <_Day>[
-    _Day(title: 'Day 6', exercises: [_DayEx(id: 'dbc', name: 'Dumbbell Bicep Curl')]),
+    _Day(title: 'Day 1', exercises: []),
   ];
 
   @override
   void dispose() {
     name.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveRoutine() async {
+    if (name.text.trim().isEmpty ||
+        days.isEmpty ||
+        days.any((day) => day.exercises.isEmpty)) {
+      setState(() => _saveError =
+          'Enter a routine name and add at least one exercise to each day.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      await ref.read(fitnessDataServiceProvider).createProgram(
+            name: name.text.trim(),
+            days: days
+                .map((day) => day.exercises
+                    .map((exercise) => <String, dynamic>{
+                          'name': exercise.name,
+                          'sets': exercise.sets,
+                          'reps': exercise.r1,
+                          'weight': exercise.weight,
+                        })
+                    .toList())
+                .toList(),
+          );
+      ref.invalidate(routineLibraryProvider);
+      ref.invalidate(homeSummaryProvider);
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _saveError = 'Could not save routine: $error';
+        });
+      }
+    }
   }
 
   @override
@@ -201,6 +324,12 @@ class _WorkoutBuildRoutineScreenState extends ConsumerState<WorkoutBuildRoutineS
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
+                  if (_saveError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(_saveError!,
+                          style: TextStyle(color: colors.danger)),
+                    ),
                   if (emptyDay)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -287,8 +416,30 @@ class _WorkoutBuildRoutineScreenState extends ConsumerState<WorkoutBuildRoutineS
                               onPressed: () async {
                                 final id = await context.push<String>('/workout/add-exercise');
                                 if (id != null) {
-                                  final def = WorkoutCatalog.byId(id);
-                                  setState(() => day.exercises.add(_DayEx(id: def.id, name: def.name, weight: def.defaultWeight.toStringAsFixed(0))));
+                                  try {
+                                    final exercises = await ref
+                                        .read(exerciseCatalogProvider.future);
+                                    final exercise = exercises.firstWhere(
+                                        (item) => item['id'] == id);
+                                    final exerciseName =
+                                        exercise['name'] as String;
+                                    if (mounted) {
+                                      setState(() => day.exercises.add(_DayEx(
+                                            id: id,
+                                            name: exerciseName,
+                                            sets: '3',
+                                            r1: '8',
+                                            r2: '8',
+                                            weight: '0',
+                                          )));
+                                    }
+                                  } catch (error) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Could not add exercise: $error')),
+                                      );
+                                    }
+                                  }
                                 }
                               },
                               child: Text('+ Add exercise', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800)),
@@ -307,13 +458,13 @@ class _WorkoutBuildRoutineScreenState extends ConsumerState<WorkoutBuildRoutineS
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.accent,
                         foregroundColor: colors.onAccent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('Save routine', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      onPressed: _saving ? null : _saveRoutine,
+                      child: Text(_saving ? 'Saving…' : 'Save routine', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                     ),
                   ),
                 ],
@@ -368,11 +519,67 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   late TextEditingController name;
   final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   final assigned = <String, String?>{};
+  bool _saving = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     name = TextEditingController(text: widget.plan?.name ?? 'jml');
+    _loadSchedule();
+  }
+
+  Future<void> _loadSchedule() async {
+    final plan = widget.plan;
+    if (plan == null) return;
+    try {
+      final rows = await ref.read(fitnessDataServiceProvider).fetchSchedule(plan.id);
+      if (!mounted) return;
+      setState(() {
+        for (final row in rows) {
+          final weekday = (row['weekday'] as num).toInt();
+          if (weekday >= 0 && weekday < days.length) {
+            final routine = plan.days
+                .where((day) => day.id == row['routine_id'])
+                .firstOrNull;
+            if (routine != null) assigned[days[weekday]] = routine.name;
+          }
+        }
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Could not load schedule: $error');
+    }
+  }
+
+  Future<void> _saveSchedule(PlanDef plan) async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final schedule = <int, String>{};
+      for (var weekday = 0; weekday < days.length; weekday++) {
+        final routineName = assigned[days[weekday]];
+        if (routineName == null) continue;
+        final routine = plan.days.where((day) => day.name == routineName).firstOrNull;
+        if (routine != null) schedule[weekday] = routine.id;
+      }
+      await ref.read(fitnessDataServiceProvider).saveSchedule(
+            programId: plan.id,
+            programName: name.text,
+            weekdayRoutines: schedule,
+          );
+      ref.invalidate(routineLibraryProvider);
+      ref.invalidate(homeSummaryProvider);
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not save schedule: $error';
+        });
+      }
+    }
   }
 
   @override
@@ -384,7 +591,16 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
-    final plan = widget.plan ?? ref.watch(plansProvider).firstWhere((p) => p.active);
+    final plan = widget.plan;
+    if (plan == null) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: Center(
+          child: Text('Select a saved program to edit its schedule.',
+              style: TextStyle(color: colors.textPrimary)),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -398,8 +614,8 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
                   IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.chevron_left, color: colors.textPrimary, size: 28)),
                   Expanded(child: Text('Weekly Schedule', textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700))),
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('SAVE', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800)),
+                    onPressed: _saving ? null : () => _saveSchedule(plan),
+                    child: Text(_saving ? 'SAVING…' : 'SAVE', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800)),
                   ),
                 ],
               ),
@@ -408,6 +624,11 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(_error!, style: TextStyle(color: colors.danger)),
+                    ),
                   Text('PLAN NAME', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   TextField(

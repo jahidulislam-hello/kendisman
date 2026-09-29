@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-import 'package:fitzella/core/theme/app_theme.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/data/progress_mock_data.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
-class GoalsTab extends StatefulWidget {
+class GoalsTab extends ConsumerStatefulWidget {
   const GoalsTab({super.key});
 
   @override
-  State<GoalsTab> createState() => _GoalsTabState();
+  ConsumerState<GoalsTab> createState() => _GoalsTabState();
 }
 
-class _GoalsTabState extends State<GoalsTab> {
+class _GoalsTabState extends ConsumerState<GoalsTab> {
   int _sub = 0; // 0 active, 1 completed
 
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
+    final goals = ref.watch(goalsProvider);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
@@ -39,194 +42,106 @@ class _GoalsTabState extends State<GoalsTab> {
           ],
         ),
         const SizedBox(height: 16),
-        if (_sub == 0) ..._active(colors) else ..._completed(colors),
+        goals.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => Column(
+            children: [
+              Text('Could not load goals: $error',
+                  style: TextStyle(color: colors.danger)),
+              TextButton(
+                onPressed: () => ref.invalidate(goalsProvider),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+          data: (rows) {
+            final filtered = rows
+                .where((row) =>
+                    row['status'] == (_sub == 0 ? 'active' : 'completed'))
+                .map(_toGoal)
+                .toList();
+            if (filtered.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 28),
+                child: Text(
+                  _sub == 0
+                      ? 'No active goals yet. Set a goal to track your progress.'
+                      : 'You have no completed goals yet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary),
+                ),
+              );
+            }
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: filtered
+                  .map((goal) => SizedBox(
+                        width: (MediaQuery.sizeOf(context).width - 50) / 2,
+                        child: _GoalCard(goal: goal),
+                      ))
+                  .toList(),
+            );
+          },
+        ),
+        if (_sub == 0) ...[
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => context.push('/progress/create-goal'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.border, width: 1.2),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_circle_outline,
+                      color: colors.textSecondary, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Set a new target goal',
+                      style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  List<Widget> _active(AppColors colors) {
-    final goals = ProgressMockData.activeGoals;
-    return [
-      Row(
-        children: [
-          Expanded(child: _GoalCard(goal: goals[0])),
-          const SizedBox(width: 10),
-          Expanded(child: _GoalCard(goal: goals[1])),
-        ],
-      ),
-      const SizedBox(height: 16),
-      GestureDetector(
-        onTap: () => context.push('/progress/create-goal'),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 1.2),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle_outline, color: colors.textSecondary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Set a new target goal',
-                style: TextStyle(color: colors.textSecondary, fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ];
+  ActiveGoal _toGoal(Map<String, dynamic> row) {
+    final exerciseName =
+        (row['exercises'] as Map<String, dynamic>?)?['name'] as String?;
+    final title = row['title'] as String? ??
+        (exerciseName == null ? 'Goal' : '$exerciseName strength goal');
+    final currentValue = (row['current_value'] as num?)?.toDouble() ?? 0;
+    final current = row['goal_type'] == 'consistency'
+        ? '${currentValue.toInt()} sessions this week'
+        : row['metric'] == 'body_fat'
+            ? '${currentValue.toStringAsFixed(1)}%'
+            : '${currentValue.toStringAsFixed(1)} lb';
+    final due = row['due_date'] == null
+        ? 'Ongoing'
+        : DateFormat('d MMM yyyy').format(DateTime.parse(row['due_date']));
+    return ActiveGoal(
+      id: row['id'] as String,
+      type: (row['goal_type'] as String? ?? 'strength').toUpperCase(),
+      title: title,
+      percent: (row['progress_percent'] as num?)?.toInt() ?? 0,
+      current: current,
+      due: due,
+    );
   }
 
-  List<Widget> _completed(AppColors colors) {
-    return [
-      ProgressSurfaceCard(
-        color: const Color(0xFF13261C),
-        borderColor: const Color(0xFF1F3A28),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle, color: colors.success, size: 16),
-                      const SizedBox(width: 6),
-                      Text('Goal Milestone Reached', style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('1 Goal Completed 🎉', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text('Target surpassed ahead of schedule', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                ],
-              ),
-            ),
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: colors.accent,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.emoji_events, color: Color(0xFFFBBF24), size: 28),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 12),
-      ProgressSurfaceCard(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.water_drop, color: Color(0xFF60A5FA), size: 16),
-                const SizedBox(width: 6),
-                const Text('CONSISTENCY', style: TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: colors.success.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text('Done', style: TextStyle(color: colors.success, fontSize: 11, fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colors.accent, width: 4),
-                    color: colors.accent,
-                  ),
-                  child: Icon(Icons.check, color: colors.onAccent),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Train 3x a week for a month', style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text('Current: 2 lb • Due 24 Aug 2026', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Divider(color: colors.border, height: 1),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(Icons.history, color: colors.success, size: 16),
-                const SizedBox(width: 6),
-                Text('Finished Aug 24, 2024', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                const Spacer(),
-                Text('Details', style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
-                Icon(Icons.chevron_right, color: colors.accent, size: 18),
-              ],
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 12),
-      ProgressSurfaceCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text('🙌', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
-                Text('HABIT CONTINUITY', style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-                const Spacer(),
-                Text('4-Week Run', style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: List.generate(4, (i) {
-                final last = i == 3;
-                final weekColor = last ? const Color(0xFF22C55E) : colors.accent;
-                return Expanded(
-                  child: Container(
-                    margin: EdgeInsets.only(right: i == 3 ? 0 : 8),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: weekColor),
-                    ),
-                    child: Column(
-                      children: [
-                        Text('WK ${i + 1}', style: TextStyle(color: weekColor, fontSize: 11, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(color: weekColor, shape: BoxShape.circle),
-                          child: Icon(Icons.check, color: colors.onAccent, size: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ],
-        ),
-      ),
-    ];
-  }
 }
 
 class _SubChip extends StatelessWidget {

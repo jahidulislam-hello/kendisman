@@ -82,7 +82,7 @@ final pendingPasswordRecoveryProvider = AutoDisposeProvider<bool>.internal(
 );
 
 typedef PendingPasswordRecoveryRef = AutoDisposeProviderRef<bool>;
-String _$authNotifierHash() => r'd5a0f47d5f44ee2e0e0628b10dbb0ed16518dde9';
+String _$authNotifierHash() => r'3fdb5306e3f5d4cc932ad92b6b908d6ed64e6c31';
 
 /// Auth notifier managing authentication state
 ///

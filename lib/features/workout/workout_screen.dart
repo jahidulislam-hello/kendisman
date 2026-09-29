@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/clock_sheet.dart';
 import 'package:fitzella/features/workout/sheets/routine_preview_sheet.dart';
@@ -15,8 +16,7 @@ class WorkoutScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
     final active = ref.watch(activeWorkoutProvider);
-    final plans = ref.watch(plansProvider);
-    final plan = plans.firstWhere((p) => p.active, orElse: () => plans.first);
+    final programs = ref.watch(routineLibraryProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -56,9 +56,17 @@ class WorkoutScreen extends ConsumerWidget {
             _PrimaryBtn(
               colors: colors,
               label: 'Start Empty Workout',
-              onTap: () {
-                ref.read(activeWorkoutProvider.notifier).startEmpty();
-                context.push('/workout/active');
+              onTap: () async {
+                final notifier = ref.read(activeWorkoutProvider.notifier);
+                await notifier.startEmpty();
+                if (!context.mounted) return;
+                if (notifier.currentState.sessionId != null) {
+                  context.push('/workout/active');
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(notifier.currentState.backendError ?? 'Could not start workout.')),
+                  );
+                }
               },
             ),
             const SizedBox(height: 12),
@@ -82,41 +90,110 @@ class WorkoutScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 22),
-            GestureDetector(
-              onTap: () => context.push('/workout/routines'),
-              child: Row(
+            programs.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, _) => Column(
                 children: [
-                  Text(plan.name, style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
-                  const Spacer(),
-                  Icon(Icons.chevron_right, color: colors.textMuted),
+                  Text('Could not load routines: $error',
+                      style: TextStyle(color: colors.danger)),
+                  TextButton(
+                    onPressed: () => ref.invalidate(routineLibraryProvider),
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final screenW = constraints.maxWidth;
-                // Show ~2.2 cards at a time on any screen width
-                final cardWidth = (screenW * 0.44).clamp(140.0, 220.0);
-                final cardHeight = (cardWidth * 0.95).clamp(130.0, 200.0);
-                return SizedBox(
-                  height: cardHeight,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: plan.days.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (context, i) {
-                      final day = plan.days[i];
-                      final names = day.exerciseIds.map((id) => WorkoutCatalog.byId(id).name).toList();
-                      return _RoutineDayCard(
-                        colors: colors,
-                        day: day,
-                        names: names,
-                        onTap: () => showRoutinePreviewSheet(context, day),
-                        width: cardWidth,
-                      );
-                    },
-                  ),
+              data: (rows) {
+                final activeProgram = rows.cast<Map<String, dynamic>?>().firstWhere(
+                      (program) => program?['is_active'] == true,
+                      orElse: () => null,
+                    );
+                if (activeProgram == null) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      rows.isEmpty
+                          ? 'You have no routines yet. Create a routine to see it here.'
+                          : 'Choose a routine and activate it to see your training days.',
+                      style: TextStyle(color: colors.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+                final routineRows =
+                    (activeProgram['routines'] as List? ?? const [])
+                        .cast<Map<String, dynamic>>()
+                      ..sort((a, b) => (a['day_index'] as int? ?? 0)
+                          .compareTo(b['day_index'] as int? ?? 0));
+                final days = routineRows.map((routine) {
+                  final exercises =
+                      (routine['routine_exercises'] as List? ?? const [])
+                          .cast<Map<String, dynamic>>()
+                        ..sort((a, b) => (a['order_index'] as int? ?? 0)
+                            .compareTo(b['order_index'] as int? ?? 0));
+                  return RoutineDay(
+                    id: routine['id'] as String,
+                    name: routine['name'] as String? ?? 'Workout',
+                    exerciseIds: exercises
+                        .map((e) => e['exercise_id'] as String)
+                        .toList(),
+                    exerciseNames: exercises
+                        .map((e) =>
+                            (e['exercises'] as Map<String, dynamic>?)?['name']
+                                as String? ??
+                            'Exercise')
+                        .toList(),
+                  );
+                }).toList();
+                return Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => context.push('/workout/routines'),
+                      child: Row(
+                        children: [
+                          Text(activeProgram['name'] as String? ?? 'Program',
+                              style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800)),
+                          const Spacer(),
+                          Icon(Icons.chevron_right, color: colors.textMuted),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (days.isEmpty)
+                      Text('This program has no workout days.',
+                          style: TextStyle(color: colors.textSecondary))
+                    else
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final cardWidth =
+                              (constraints.maxWidth * 0.44).clamp(140.0, 220.0);
+                          final cardHeight =
+                              (cardWidth * 0.95).clamp(130.0, 200.0);
+                          return SizedBox(
+                            height: cardHeight,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: days.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (context, i) => _RoutineDayCard(
+                                colors: colors,
+                                day: days[i],
+                                names: days[i].exerciseNames,
+                                onTap: () => showRoutinePreviewSheet(
+                                    context, days[i]),
+                                width: cardWidth,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
                 );
               },
             ),

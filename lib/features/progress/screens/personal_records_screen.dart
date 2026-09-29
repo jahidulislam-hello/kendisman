@@ -1,37 +1,113 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:fitzella/features/progress/data/progress_mock_data.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
-class PersonalRecordsScreen extends StatefulWidget {
+class PersonalRecordItem {
+  const PersonalRecordItem({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.record,
+    required this.delta,
+    required this.date,
+    required this.previous,
+    required this.current,
+  });
+
+  final String id;
+  final String name;
+  final String category;
+  final String record;
+  final String delta;
+  final DateTime date;
+  final String previous;
+  final String current;
+}
+
+class PersonalRecordsScreen extends ConsumerStatefulWidget {
   const PersonalRecordsScreen({super.key});
 
   @override
-  State<PersonalRecordsScreen> createState() => _PersonalRecordsScreenState();
+  ConsumerState<PersonalRecordsScreen> createState() => _PersonalRecordsScreenState();
 }
 
-class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
+class _PersonalRecordsScreenState extends ConsumerState<PersonalRecordsScreen> {
   int _cat = 0;
   final _cats = const ['All', 'Upper Body', 'Lower Body', 'Core'];
 
-  List<PersonalRecordItem> get _items {
+  List<PersonalRecordItem> _items = const [];
+
+  List<PersonalRecordItem> _filterItems() {
     final cat = _cats[_cat];
-    if (cat == 'All') return ProgressMockData.personalRecords;
-    return ProgressMockData.personalRecords.where((e) => e.category == cat).toList();
+    if (cat == 'All') return _items;
+    return _items.where((e) => e.category == cat).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
-    final items = _items;
+    final records = ref.watch(personalRecordsProvider);
+    if (records.isLoading) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (records.hasError) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Could not load personal records: ${records.error}',
+                  style: TextStyle(color: colors.textPrimary)),
+              TextButton(
+                onPressed: () => ref.invalidate(personalRecordsProvider),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    _items = (records.value ?? const []).map((row) {
+      final muscle = (row['muscle_group'] as String? ?? '').toLowerCase();
+      final category = muscle.contains('leg')
+          ? 'Lower Body'
+          : muscle.contains('core') || muscle.contains('ab')
+              ? 'Core'
+              : 'Upper Body';
+      final weight = (row['weight'] as num?)?.toDouble() ?? 0;
+      final reps = (row['reps'] as num?)?.toInt() ?? 0;
+      final current = '${weight.toStringAsFixed(1)} lb × $reps';
+      final previousRm = (row['previous_one_rm'] as num?)?.toDouble();
+      return PersonalRecordItem(
+        id: row['exercise_id'] as String,
+        name: row['name'] as String? ?? 'Exercise',
+        category: category,
+        record: current,
+        delta: row['delta'] == null
+            ? 'Best'
+            : '+${(row['delta'] as num).toStringAsFixed(1)} 1RM',
+        date: row['date'] as DateTime,
+        previous: previousRm == null
+            ? 'First record'
+            : '${previousRm.toStringAsFixed(1)} lb est. 1RM',
+        current: '${(row['one_rm'] as num).toStringAsFixed(1)} lb est. 1RM',
+      );
+    }).toList();
+    final items = _filterItems();
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 8, 20, 0),
               child: ProgressBackHeader(
                 title: 'Personal records',
                 showBackText: false,
@@ -63,7 +139,7 @@ class _PersonalRecordsScreenState extends State<PersonalRecordsScreen> {
                     children: [
                       Text('Recent PRs', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                       const Spacer(),
-                      Text('Last 30 days', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                      Text('${items.length} exercises', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 12),

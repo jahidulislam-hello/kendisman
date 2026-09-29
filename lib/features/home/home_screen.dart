@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:fitzella/core/services/profile_prefs_service.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 
@@ -15,6 +16,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
     final profile = ref.watch(cachedProfileProvider);
+    final summary = ref.watch(homeSummaryProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -24,21 +26,93 @@ class HomeScreen extends ConsumerWidget {
           children: [
             _Header(colors: colors, profile: profile),
             const SizedBox(height: 18),
-            _UpNextCard(colors: colors, onContinue: () => context.go('/workout')),
-            const SizedBox(height: 22),
-            _WeeklySnapshot(colors: colors),
-            const SizedBox(height: 22),
-            _ThisWeekCalendar(colors: colors),
-            const SizedBox(height: 18),
-            _AchievementsCard(
-              colors: colors,
-              onTap: () => context.push('/home/achievements'),
+            summary.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 36),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, _) => _HomeLoadError(
+                message: error.toString(),
+                onRetry: () => ref.invalidate(homeSummaryProvider),
+                colors: colors,
+              ),
+              data: (data) => Column(
+                children: [
+                  _UpNextCard(
+                    colors: colors,
+                    workoutName: _nextRoutineName(data),
+                    exerciseCount: _nextExerciseCount(data),
+                    onContinue: () => context.go('/workout'),
+                  ),
+                  const SizedBox(height: 22),
+                  _WeeklySnapshot(colors: colors, summary: data),
+                  const SizedBox(height: 22),
+                  _ThisWeekCalendar(
+                    colors: colors,
+                    workedDays: (data['week_days'] as Set<String>?) ?? const {},
+                  ),
+                  const SizedBox(height: 18),
+                  _AchievementsCard(
+                    colors: colors,
+                    workoutCount: data['workouts_this_week'] as int? ?? 0,
+                    onTap: () => context.push('/home/achievements'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  String _nextRoutineName(Map<String, dynamic> data) {
+    final program = data['program'] as Map<String, dynamic>?;
+    final routine = data['next_routine'] as Map<String, dynamic>?;
+    if (routine == null) {
+      return program == null ? 'No routine scheduled' : 'Rest day';
+    }
+    return '${program?['name'] ?? 'Routine'} · ${routine['name']}';
+  }
+
+  int _nextExerciseCount(Map<String, dynamic> data) {
+    final routine = data['next_routine'] as Map<String, dynamic>?;
+    return (routine?['routine_exercises'] as List? ?? const []).length;
+  }
+}
+
+class _HomeLoadError extends StatelessWidget {
+  const _HomeLoadError({
+    required this.message,
+    required this.onRetry,
+    required this.colors,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          children: [
+            Text('Could not load your workout summary.',
+                style: TextStyle(color: colors.textPrimary)),
+            const SizedBox(height: 4),
+            Text(message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.textMuted, fontSize: 12)),
+            TextButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
+        ),
+      );
 }
 
 class _Header extends StatelessWidget {
@@ -79,8 +153,15 @@ class _Header extends StatelessWidget {
 
 class _UpNextCard extends StatelessWidget {
   final AppColors colors;
+  final String workoutName;
+  final int exerciseCount;
   final VoidCallback onContinue;
-  const _UpNextCard({required this.colors, required this.onContinue});
+  const _UpNextCard({
+    required this.colors,
+    required this.workoutName,
+    required this.exerciseCount,
+    required this.onContinue,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +182,7 @@ class _UpNextCard extends StatelessWidget {
               const Spacer(),
               Icon(Icons.schedule, size: 14, color: colors.textMuted),
               const SizedBox(width: 4),
-              Text('~10m', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('$exerciseCount exercises', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 14),
@@ -112,9 +193,9 @@ class _UpNextCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Plan · Week 1', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                    Text(workoutName.contains('·') ? workoutName.split('·').first.trim() : 'Training plan', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
                     const SizedBox(height: 4),
-                    Text('Day 1', style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
+                    Text(workoutName.contains('·') ? workoutName.split('·').last.trim() : workoutName, style: TextStyle(color: colors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
@@ -140,7 +221,7 @@ class _UpNextCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text('3 exercises', style: TextStyle(color: colors.textMuted, fontSize: 11)),
+                  Text('$exerciseCount exercises', style: TextStyle(color: colors.textMuted, fontSize: 11)),
                 ],
               ),
             ],
@@ -169,7 +250,8 @@ class _UpNextCard extends StatelessWidget {
 
 class _WeeklySnapshot extends StatelessWidget {
   final AppColors colors;
-  const _WeeklySnapshot({required this.colors});
+  final Map<String, dynamic> summary;
+  const _WeeklySnapshot({required this.colors, required this.summary});
 
   @override
   Widget build(BuildContext context) {
@@ -177,6 +259,13 @@ class _WeeklySnapshot extends StatelessWidget {
     const green = Color(0xFF4ADE80);
     const orange = Color(0xFFFB923C);
     const yellow = Color(0xFFFBBF24);
+    final currentVolume =
+        (summary['volume_this_week'] as num? ?? 0).toDouble() / 1000;
+    final previousVolume =
+        (summary['volume_last_week'] as num? ?? 0).toDouble() / 1000;
+    final maxVolume =
+        (currentVolume > previousVolume ? currentVolume : previousVolume)
+            .clamp(1.0, double.infinity);
 
     return Column(
       children: [
@@ -217,7 +306,7 @@ class _WeeklySnapshot extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('31,240 lb', style: TextStyle(color: colors.textPrimary, fontSize: 30, fontWeight: FontWeight.w800)),
+                    Text('${_formatNumber(summary['volume_this_week'] as num? ?? 0)} lb', style: TextStyle(color: colors.textPrimary, fontSize: 30, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -226,12 +315,23 @@ class _WeeklySnapshot extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: const Color(0xFFF87171).withValues(alpha: 0.55)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.arrow_upward, size: 12, color: Color(0xFFF87171)),
-                          SizedBox(width: 2),
-                          Text('48.1% vs last week', style: TextStyle(color: Color(0xFFF87171), fontSize: 11, fontWeight: FontWeight.w700)),
+                          Icon(
+                            Icons.compare_arrows,
+                            size: 12,
+                            color: Color(0xFFF87171),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${_volumeDelta(summary)} vs last week',
+                            style: const TextStyle(
+                              color: Color(0xFFF87171),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -244,19 +344,22 @@ class _WeeklySnapshot extends StatelessWidget {
                 child: LineChart(
                   LineChartData(
                     minY: 0,
-                    maxY: 4,
+                    maxY: maxVolume,
                     gridData: const FlGridData(show: false),
                     titlesData: const FlTitlesData(show: false),
                     borderData: FlBorderData(show: false),
                     lineBarsData: [
                       LineChartBarData(
-                        spots: const [FlSpot(0, 1.2), FlSpot(1, 2.1), FlSpot(2, 1.8), FlSpot(3, 3.6), FlSpot(4, 2.4)],
+                        spots: [
+                          FlSpot(0, previousVolume),
+                          FlSpot(1, currentVolume),
+                        ],
                         isCurved: true,
                         color: colors.accent,
                         barWidth: 3,
                         dotData: FlDotData(
                           show: true,
-                          checkToShowDot: (s, _) => s.x == 3,
+                          checkToShowDot: (s, _) => s.x == 1,
                           getDotPainter: (s, p, b, i) => FlDotCirclePainter(
                             radius: 4,
                             color: colors.accent,
@@ -283,21 +386,31 @@ class _WeeklySnapshot extends StatelessWidget {
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _MetricCard(colors: colors, icon: Icons.layers, color: purple, label: 'SETS', value: '17', sub: '17 per workout')),
+            Expanded(child: _MetricCard(colors: colors, icon: Icons.layers, color: purple, label: 'SETS', value: '${summary['sets_this_week'] ?? 0}', sub: 'this week')),
             const SizedBox(width: 10),
-            Expanded(child: _MetricCard(colors: colors, icon: Icons.calendar_today, color: green, label: 'WORKOUTS', value: '1/2', sub: '1 remaining')),
+            Expanded(child: _MetricCard(colors: colors, icon: Icons.calendar_today, color: green, label: 'WORKOUTS', value: '${summary['workouts_this_week'] ?? 0}', sub: 'this week')),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _MetricCard(colors: colors, icon: Icons.schedule, color: orange, label: 'TIME', value: '1h', sub: '2h 17m last week')),
+            Expanded(child: _MetricCard(colors: colors, icon: Icons.schedule, color: orange, label: 'TIME', value: '${(summary['minutes_this_week'] as int? ?? 0) ~/ 60}h', sub: '${summary['minutes_this_week'] ?? 0} minutes this week')),
             const SizedBox(width: 10),
-            Expanded(child: _MetricCard(colors: colors, icon: Icons.local_fire_department, color: yellow, label: 'STREAK', value: '0', sub: 'day streak')),
+            Expanded(child: _MetricCard(colors: colors, icon: Icons.local_fire_department, color: yellow, label: 'STREAK', value: '—', sub: 'not available')),
           ],
         ),
       ],
     );
+  }
+
+  String _formatNumber(num number) => number.toStringAsFixed(0);
+
+  String _volumeDelta(Map<String, dynamic> data) {
+    final previous = (data['volume_last_week'] as num? ?? 0).toDouble();
+    if (previous == 0) return '—';
+    final current = (data['volume_this_week'] as num? ?? 0).toDouble();
+    final percent = ((current - previous) / previous * 100).toStringAsFixed(1);
+    return '${current >= previous ? '+' : ''}$percent%';
   }
 }
 
@@ -345,19 +458,31 @@ class _MetricCard extends StatelessWidget {
 
 class _ThisWeekCalendar extends StatelessWidget {
   final AppColors colors;
-  const _ThisWeekCalendar({required this.colors});
+  final Set<String> workedDays;
+  const _ThisWeekCalendar({required this.colors, required this.workedDays});
 
   @override
   Widget build(BuildContext context) {
-    const days = [
-      _Day('M', '31', DayState.past),
-      _Day('T', '2', DayState.done),
-      _Day('W', '3', DayState.past),
-      _Day('T', '4', DayState.past),
-      _Day('F', '5', DayState.past),
-      _Day('S', '6', DayState.today),
-      _Day('S', '7', DayState.future),
-    ];
+    final today = DateTime.now();
+    final monday = DateTime(today.year, today.month, today.day)
+        .subtract(Duration(days: today.weekday - 1));
+    final days = List.generate(7, (i) {
+      final date = monday.add(Duration(days: i));
+      final key = '${date.year}-${date.month}-${date.day}';
+      return _Day(
+        const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i],
+        '${date.day}',
+        workedDays.contains(key)
+            ? DayState.done
+            : date.isAfter(today)
+                ? DayState.future
+                : date.day == today.day &&
+                        date.month == today.month &&
+                        date.year == today.year
+                    ? DayState.today
+                    : DayState.past,
+      );
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,8 +558,9 @@ class _Day {
 
 class _AchievementsCard extends StatelessWidget {
   final AppColors colors;
+  final int workoutCount;
   final VoidCallback onTap;
-  const _AchievementsCard({required this.colors, required this.onTap});
+  const _AchievementsCard({required this.colors, required this.workoutCount, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -470,7 +596,7 @@ class _AchievementsCard extends StatelessWidget {
                   children: [
                     Text('This Week Achievements', style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    Text('8 badges earned · Level 24', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                    Text('$workoutCount completed workouts this week', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                   ],
                 ),
               ),

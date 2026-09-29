@@ -82,7 +82,8 @@ class AuthScreen extends ConsumerWidget {
                   alignment: Alignment.centerLeft,
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    constraints:
+                        const BoxConstraints(minWidth: 40, minHeight: 40),
                     onPressed: () {
                       if (context.canPop()) {
                         context.pop();
@@ -90,7 +91,8 @@ class AuthScreen extends ConsumerWidget {
                         context.go('/welcome');
                       }
                     },
-                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: colors.textPrimary, size: 20),
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        color: colors.textPrimary, size: 20),
                   ),
                 ),
               if (title != null) ...[
@@ -103,16 +105,21 @@ class AuthScreen extends ConsumerWidget {
                   ),
                 ),
                 const VGap(AppSpacing.sm),
-                Text(title!, style: AppTypography.screenTitle.copyWith(color: colors.textPrimary)),
+                Text(title!,
+                    style: AppTypography.screenTitle
+                        .copyWith(color: colors.textPrimary)),
                 if (subtitle != null) ...[
                   const VGap(AppSpacing.xs),
-                  Text(subtitle!, style: AppTypography.secondary.copyWith(color: colors.textSecondary)),
+                  Text(subtitle!,
+                      style: AppTypography.secondary
+                          .copyWith(color: colors.textSecondary)),
                 ],
                 const VGap(AppSpacing.xl),
               ],
               Expanded(
                 child: SingleChildScrollView(
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   child: child,
                 ),
               ),
@@ -160,8 +167,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       success: (_) {
         final auth = ref.read(authNotifierProvider);
         final cached = ref.read(cachedProfileProvider);
-        final onboarded =
-            auth.profile?.onboarded == true || cached?.onboarded == true;
+        final onboarded = (auth.profile?.id == auth.session?.user.id &&
+                auth.profile?.onboarded == true) ||
+            (cached?.userId == auth.session?.user.id &&
+                cached?.onboarded == true);
         _showAuthSnack(
           context,
           message: onboarded
@@ -170,12 +179,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
         context.go(onboarded ? '/home' : '/onboarding/welcome');
       },
-      error: (message) => _showAuthSnack(context, message: message, isError: true),
+      error: (message) =>
+          _showAuthSnack(context, message: message, isError: true),
     );
   }
 
   void _socialComingSoon() {
-    _showAuthSnack(context, message: 'Apple & Google sign-in coming soon to Fitzella.');
+    _showAuthSnack(context,
+        message: 'Apple & Google sign-in coming soon to Fitzella.');
   }
 
   @override
@@ -220,11 +231,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   color: colors.textMuted,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Password is required';
-                if (value.length < 6) return 'Password must be at least 6 characters';
+                if (value == null || value.isEmpty)
+                  return 'Password is required';
+                if (value.length < 6)
+                  return 'Password must be at least 6 characters';
                 return null;
               },
             ),
@@ -233,7 +247,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => context.go('/auth/forgot-password'),
-                child: Text('Forgot Password?', style: AppTypography.secondary.copyWith(color: colors.accent)),
+                child: Text('Forgot Password?',
+                    style:
+                        AppTypography.secondary.copyWith(color: colors.accent)),
               ),
             ),
             const VGap(AppSpacing.lg),
@@ -247,8 +263,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 Expanded(child: Divider(color: colors.border)),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text('or continue with', style: AppTypography.small.copyWith(color: colors.textMuted)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Text('or continue with',
+                      style: AppTypography.small
+                          .copyWith(color: colors.textMuted)),
                 ),
                 Expanded(child: Divider(color: colors.border)),
               ],
@@ -271,7 +290,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'https://www.google.com/favicon.ico',
                       width: 20,
                       height: 20,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 22),
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.g_mobiledata, size: 22),
                     ),
                     onPressed: _socialComingSoon,
                   ),
@@ -282,10 +302,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Don\'t have an account? ', style: AppTypography.body.copyWith(color: colors.textSecondary)),
+                Text('Don\'t have an account? ',
+                    style: AppTypography.body
+                        .copyWith(color: colors.textSecondary)),
                 TextButton(
                   onPressed: () => context.go('/auth/signup'),
-                  child: Text('Sign Up', style: AppTypography.body.copyWith(color: colors.accent, fontWeight: FontWeight.w600)),
+                  child: Text('Sign Up',
+                      style: AppTypography.body.copyWith(
+                          color: colors.accent, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -349,18 +373,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             context,
             message: 'Check your email for a Fitzella confirmation code.',
           );
-          context.go('/auth/verify-otp?email=${Uri.encodeComponent(email)}&purpose=signup');
+          context.go(
+              '/auth/verify-otp?email=${Uri.encodeComponent(email)}&purpose=signup');
         } else {
           _showAuthSnack(context, message: 'Welcome to Fitzella!');
           context.go('/onboarding/welcome');
         }
       },
-      error: (message) => _showAuthSnack(context, message: message, isError: true),
+      error: (message) =>
+          _showAuthSnack(context, message: message, isError: true),
     );
   }
 
   void _socialComingSoon() {
-    _showAuthSnack(context, message: 'Apple & Google sign-in coming soon to Fitzella.');
+    _showAuthSnack(context,
+        message: 'Apple & Google sign-in coming soon to Fitzella.');
   }
 
   @override
@@ -404,11 +431,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   color: colors.textMuted,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Password is required';
-                if (value.length < 6) return 'Password must be at least 6 characters';
+                if (value == null || value.isEmpty)
+                  return 'Password is required';
+                if (value.length < 6)
+                  return 'Password must be at least 6 characters';
                 return null;
               },
             ),
@@ -426,11 +456,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   _obscureConfirm ? Icons.visibility_off : Icons.visibility,
                   color: colors.textMuted,
                 ),
-                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Please confirm password';
-                if (value != _passwordController.text) return 'Passwords do not match';
+                if (value == null || value.isEmpty)
+                  return 'Please confirm password';
+                if (value != _passwordController.text)
+                  return 'Passwords do not match';
                 return null;
               },
             ),
@@ -442,13 +475,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   value: _termsAccepted,
                   onChanged: (v) => setState(() => _termsAccepted = v ?? false),
                   activeColor: colors.accent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
                 ),
                 const HGap(AppSpacing.xs),
                 Expanded(
                   child: Text(
                     'I agree to the Fitzella Terms of Service and Privacy Policy',
-                    style: AppTypography.small.copyWith(color: colors.textSecondary),
+                    style: AppTypography.small
+                        .copyWith(color: colors.textSecondary),
                   ),
                 ),
               ],
@@ -464,8 +499,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               children: [
                 Expanded(child: Divider(color: colors.border)),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text('or continue with', style: AppTypography.small.copyWith(color: colors.textMuted)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Text('or continue with',
+                      style: AppTypography.small
+                          .copyWith(color: colors.textMuted)),
                 ),
                 Expanded(child: Divider(color: colors.border)),
               ],
@@ -488,7 +526,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       'https://www.google.com/favicon.ico',
                       width: 20,
                       height: 20,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 22),
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.g_mobiledata, size: 22),
                     ),
                     onPressed: _socialComingSoon,
                   ),
@@ -499,10 +538,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Already have an account? ', style: AppTypography.body.copyWith(color: colors.textSecondary)),
+                Text('Already have an account? ',
+                    style: AppTypography.body
+                        .copyWith(color: colors.textSecondary)),
                 TextButton(
                   onPressed: () => context.go('/auth/login'),
-                  child: Text('Sign In', style: AppTypography.body.copyWith(color: colors.accent, fontWeight: FontWeight.w600)),
+                  child: Text('Sign In',
+                      style: AppTypography.body.copyWith(
+                          color: colors.accent, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -518,7 +561,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -536,7 +580,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     final email = _emailController.text.trim();
-    final result = await ref.read(authNotifierProvider.notifier).sendPasswordResetOtp(email);
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .sendPasswordResetOtp(email);
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -550,7 +596,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           '/auth/verify-otp?email=${Uri.encodeComponent(email)}&purpose=recovery',
         );
       },
-      error: (message) => _showAuthSnack(context, message: message, isError: true),
+      error: (message) =>
+          _showAuthSnack(context, message: message, isError: true),
     );
   }
 
@@ -593,10 +640,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Remember your password? ', style: AppTypography.body.copyWith(color: colors.textSecondary)),
+                Text('Remember your password? ',
+                    style: AppTypography.body
+                        .copyWith(color: colors.textSecondary)),
                 TextButton(
                   onPressed: () => context.go('/auth/login'),
-                  child: Text('Sign In', style: AppTypography.body.copyWith(color: colors.accent, fontWeight: FontWeight.w600)),
+                  child: Text('Sign In',
+                      style: AppTypography.body.copyWith(
+                          color: colors.accent, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -612,7 +663,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({super.key});
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
@@ -641,10 +693,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     result.when(
       success: (_) {
-        _showAuthSnack(context, message: 'Password updated. Sign in to Fitzella.');
+        _showAuthSnack(context,
+            message: 'Password updated. Sign in to Fitzella.');
         context.go('/auth/login');
       },
-      error: (message) => _showAuthSnack(context, message: message, isError: true),
+      error: (message) =>
+          _showAuthSnack(context, message: message, isError: true),
     );
   }
 
@@ -673,11 +727,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   color: colors.textMuted,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Password is required';
-                if (value.length < 6) return 'Password must be at least 6 characters';
+                if (value == null || value.isEmpty)
+                  return 'Password is required';
+                if (value.length < 6)
+                  return 'Password must be at least 6 characters';
                 return null;
               },
             ),
@@ -695,11 +752,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   _obscureConfirm ? Icons.visibility_off : Icons.visibility,
                   color: colors.textMuted,
                 ),
-                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Please confirm password';
-                if (value != _passwordController.text) return 'Passwords do not match';
+                if (value == null || value.isEmpty)
+                  return 'Please confirm password';
+                if (value != _passwordController.text)
+                  return 'Passwords do not match';
                 return null;
               },
             ),
@@ -776,7 +836,8 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
   Future<void> _handleVerify() async {
     final code = _controllers.map((c) => c.text).join();
     if (code.length != 6) {
-      _showAuthSnack(context, message: 'Enter the full 6-digit code', isError: true);
+      _showAuthSnack(context,
+          message: 'Enter the full 6-digit code', isError: true);
       return;
     }
     if (widget.email.isEmpty) {
@@ -799,14 +860,17 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     result.when(
       success: (_) {
         if (widget.purpose == 'recovery') {
-          _showAuthSnack(context, message: 'Code verified. Set your new password.');
+          _showAuthSnack(context,
+              message: 'Code verified. Set your new password.');
           context.go('/auth/reset-password');
         } else {
-          _showAuthSnack(context, message: 'Email confirmed. Welcome to Fitzella!');
+          _showAuthSnack(context,
+              message: 'Email confirmed. Welcome to Fitzella!');
           context.go('/onboarding/welcome');
         }
       },
-      error: (message) => _showAuthSnack(context, message: message, isError: true),
+      error: (message) =>
+          _showAuthSnack(context, message: message, isError: true),
     );
   }
 
@@ -815,8 +879,12 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     setState(() => _loading = true);
     _authLog('Resend email requested for ${widget.email}');
     final result = widget.purpose == 'recovery'
-        ? await ref.read(authNotifierProvider.notifier).sendPasswordResetOtp(widget.email)
-        : await ref.read(authNotifierProvider.notifier).resendSignupOtp(widget.email);
+        ? await ref
+            .read(authNotifierProvider.notifier)
+            .sendPasswordResetOtp(widget.email)
+        : await ref
+            .read(authNotifierProvider.notifier)
+            .resendSignupOtp(widget.email);
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -866,7 +934,8 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
                 ? 'Enter the code from your Fitzella email to continue.'
                 : 'After you tap “Confirm email address” in your inbox, Fitzella will open automatically.',
             textAlign: TextAlign.center,
-            style: AppTypography.secondary.copyWith(color: colors.textSecondary),
+            style:
+                AppTypography.secondary.copyWith(color: colors.textSecondary),
           ),
           const VGap(AppSpacing.xl),
           Row(
@@ -882,7 +951,8 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
                   maxLength: 1,
-                  style: AppTypography.statNumber.copyWith(color: colors.textPrimary),
+                  style: AppTypography.statNumber
+                      .copyWith(color: colors.textPrimary),
                   decoration: InputDecoration(
                     counterText: '',
                     filled: true,
@@ -911,7 +981,9 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
           TextButton(
             onPressed: (_loading || _resendCooldown > 0) ? null : _handleResend,
             child: Text(
-              _resendCooldown > 0 ? 'Resend Email (${_resendCooldown}s)' : 'Resend Email',
+              _resendCooldown > 0
+                  ? 'Resend Email (${_resendCooldown}s)'
+                  : 'Resend Email',
               style: AppTypography.body.copyWith(
                 color: _resendCooldown > 0 ? colors.textMuted : colors.accent,
               ),

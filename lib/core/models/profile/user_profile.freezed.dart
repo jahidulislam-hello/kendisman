@@ -47,6 +47,7 @@ mixin _$UserProfile {
   TrainingGoal? get goal => throw _privateConstructorUsedError;
   ExperienceLevel? get experienceLevel => throw _privateConstructorUsedError;
   int? get trainingDaysPerWeek => throw _privateConstructorUsedError;
+  String? get equipmentPreference => throw _privateConstructorUsedError;
   bool get emailOptIn => throw _privateConstructorUsedError;
   String? get referralSource => throw _privateConstructorUsedError;
   bool get onboarded => throw _privateConstructorUsedError;
@@ -89,6 +90,7 @@ abstract class $UserProfileCopyWith<$Res> {
       TrainingGoal? goal,
       ExperienceLevel? experienceLevel,
       int? trainingDaysPerWeek,
+      String? equipmentPreference,
       bool emailOptIn,
       String? referralSource,
       bool onboarded});
@@ -132,6 +134,7 @@ class _$UserProfileCopyWithImpl<$Res, $Val extends UserProfile>
     Object? goal = freezed,
     Object? experienceLevel = freezed,
     Object? trainingDaysPerWeek = freezed,
+    Object? equipmentPreference = freezed,
     Object? emailOptIn = null,
     Object? referralSource = freezed,
     Object? onboarded = null,
@@ -238,6 +241,10 @@ class _$UserProfileCopyWithImpl<$Res, $Val extends UserProfile>
           ? _value.trainingDaysPerWeek
           : trainingDaysPerWeek // ignore: cast_nullable_to_non_nullable
               as int?,
+      equipmentPreference: freezed == equipmentPreference
+          ? _value.equipmentPreference
+          : equipmentPreference // ignore: cast_nullable_to_non_nullable
+              as String?,
       emailOptIn: null == emailOptIn
           ? _value.emailOptIn
           : emailOptIn // ignore: cast_nullable_to_non_nullable
@@ -288,6 +295,7 @@ abstract class _$$UserProfileImplCopyWith<$Res>
       TrainingGoal? goal,
       ExperienceLevel? experienceLevel,
       int? trainingDaysPerWeek,
+      String? equipmentPreference,
       bool emailOptIn,
       String? referralSource,
       bool onboarded});
@@ -329,6 +337,7 @@ class __$$UserProfileImplCopyWithImpl<$Res>
     Object? goal = freezed,
     Object? experienceLevel = freezed,
     Object? trainingDaysPerWeek = freezed,
+    Object? equipmentPreference = freezed,
     Object? emailOptIn = null,
     Object? referralSource = freezed,
     Object? onboarded = null,
@@ -435,6 +444,10 @@ class __$$UserProfileImplCopyWithImpl<$Res>
           ? _value.trainingDaysPerWeek
           : trainingDaysPerWeek // ignore: cast_nullable_to_non_nullable
               as int?,
+      equipmentPreference: freezed == equipmentPreference
+          ? _value.equipmentPreference
+          : equipmentPreference // ignore: cast_nullable_to_non_nullable
+              as String?,
       emailOptIn: null == emailOptIn
           ? _value.emailOptIn
           : emailOptIn // ignore: cast_nullable_to_non_nullable
@@ -481,6 +494,7 @@ class _$UserProfileImpl implements _UserProfile {
       this.goal,
       this.experienceLevel,
       this.trainingDaysPerWeek,
+      this.equipmentPreference,
       required this.emailOptIn,
       this.referralSource,
       required this.onboarded})
@@ -548,6 +562,8 @@ class _$UserProfileImpl implements _UserProfile {
   @override
   final int? trainingDaysPerWeek;
   @override
+  final String? equipmentPreference;
+  @override
   final bool emailOptIn;
   @override
   final String? referralSource;
@@ -556,7 +572,7 @@ class _$UserProfileImpl implements _UserProfile {
 
   @override
   String toString() {
-    return 'UserProfile(id: $id, email: $email, mode: $mode, subscriptionTier: $subscriptionTier, unitPreference: $unitPreference, themePreference: $themePreference, sex: $sex, username: $username, dateOfBirth: $dateOfBirth, heightCm: $heightCm, photoUrl: $photoUrl, createdAt: $createdAt, pushToken: $pushToken, notificationsEnabled: $notificationsEnabled, restTimerDefaultOverrideSeconds: $restTimerDefaultOverrideSeconds, restTimerExerciseOverrides: $restTimerExerciseOverrides, restTimerEnabled: $restTimerEnabled, rpeTrackingEnabled: $rpeTrackingEnabled, trialNudgeSent: $trialNudgeSent, isReviewer: $isReviewer, referralCode: $referralCode, isLifetime: $isLifetime, goal: $goal, experienceLevel: $experienceLevel, trainingDaysPerWeek: $trainingDaysPerWeek, emailOptIn: $emailOptIn, referralSource: $referralSource, onboarded: $onboarded)';
+    return 'UserProfile(id: $id, email: $email, mode: $mode, subscriptionTier: $subscriptionTier, unitPreference: $unitPreference, themePreference: $themePreference, sex: $sex, username: $username, dateOfBirth: $dateOfBirth, heightCm: $heightCm, photoUrl: $photoUrl, createdAt: $createdAt, pushToken: $pushToken, notificationsEnabled: $notificationsEnabled, restTimerDefaultOverrideSeconds: $restTimerDefaultOverrideSeconds, restTimerExerciseOverrides: $restTimerExerciseOverrides, restTimerEnabled: $restTimerEnabled, rpeTrackingEnabled: $rpeTrackingEnabled, trialNudgeSent: $trialNudgeSent, isReviewer: $isReviewer, referralCode: $referralCode, isLifetime: $isLifetime, goal: $goal, experienceLevel: $experienceLevel, trainingDaysPerWeek: $trainingDaysPerWeek, equipmentPreference: $equipmentPreference, emailOptIn: $emailOptIn, referralSource: $referralSource, onboarded: $onboarded)';
   }
 
   @override
@@ -612,6 +628,8 @@ class _$UserProfileImpl implements _UserProfile {
                 other.experienceLevel == experienceLevel) &&
             (identical(other.trainingDaysPerWeek, trainingDaysPerWeek) ||
                 other.trainingDaysPerWeek == trainingDaysPerWeek) &&
+            (identical(other.equipmentPreference, equipmentPreference) ||
+                other.equipmentPreference == equipmentPreference) &&
             (identical(other.emailOptIn, emailOptIn) ||
                 other.emailOptIn == emailOptIn) &&
             (identical(other.referralSource, referralSource) ||
@@ -649,6 +667,7 @@ class _$UserProfileImpl implements _UserProfile {
         goal,
         experienceLevel,
         trainingDaysPerWeek,
+        equipmentPreference,
         emailOptIn,
         referralSource,
         onboarded
@@ -695,6 +714,7 @@ abstract class _UserProfile implements UserProfile {
       final TrainingGoal? goal,
       final ExperienceLevel? experienceLevel,
       final int? trainingDaysPerWeek,
+      final String? equipmentPreference,
       required final bool emailOptIn,
       final String? referralSource,
       required final bool onboarded}) = _$UserProfileImpl;
@@ -752,6 +772,8 @@ abstract class _UserProfile implements UserProfile {
   ExperienceLevel? get experienceLevel;
   @override
   int? get trainingDaysPerWeek;
+  @override
+  String? get equipmentPreference;
   @override
   bool get emailOptIn;
   @override

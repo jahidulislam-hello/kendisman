@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:fitzella/features/progress/data/progress_mock_data.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
-class MainExercisesScreen extends StatefulWidget {
+class MainExercisesScreen extends ConsumerStatefulWidget {
   const MainExercisesScreen({super.key});
 
   @override
-  State<MainExercisesScreen> createState() => _MainExercisesScreenState();
+  ConsumerState<MainExercisesScreen> createState() => _MainExercisesScreenState();
 }
 
-class _MainExercisesScreenState extends State<MainExercisesScreen> {
+class _MainExercisesScreenState extends ConsumerState<MainExercisesScreen> {
   int _range = 1; // 3M
   final _ranges = const ['1M', '3M', '6M', '1Y', 'All'];
 
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
-    final items = ProgressMockData.mainExercises;
+    final days = const [30, 90, 180, 365, null][_range];
+    final items = ref.watch(mainExercisesProvider(days));
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
@@ -47,14 +49,33 @@ class _MainExercisesScreenState extends State<MainExercisesScreen> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView.separated(
+              child: items.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Could not load exercises: $error',
+                          style: TextStyle(color: colors.textPrimary)),
+                      TextButton(
+                        onPressed: () => ref.invalidate(mainExercisesProvider(days)),
+                        child: const Text('Try again'),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (rows) => rows.isEmpty
+                    ? Center(
+                        child: Text('No logged exercises in this time range.',
+                            style: TextStyle(color: colors.textSecondary)))
+                    : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                itemCount: items.length,
+                itemCount: rows.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
-                  final item = items[i];
+                  final item = rows[i];
                   return ProgressSurfaceCard(
-                    onTap: () => context.push('/progress/exercise/${item.id}'),
+                    onTap: () => context.push('/progress/exercise/${item['id']}'),
                     child: Row(
                       children: [
                         SizedBox(
@@ -78,22 +99,23 @@ class _MainExercisesScreenState extends State<MainExercisesScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item.name, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
-                              Text(item.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                              Text(item['name'] as String, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                              Text(item['muscle'] as String, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                             ],
                           ),
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('${item.sessions} sessions', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                            Text('${item.totalVolume} total', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                            Text('${item['sessions']} sessions', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                            Text('${(item['volume'] as num).toStringAsFixed(0)} lb total', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                           ],
                         ),
                       ],
                     ),
                   );
                 },
+              ),
               ),
             ),
           ],

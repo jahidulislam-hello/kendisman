@@ -45,8 +45,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final cached = ref.read(cachedProfileProvider) ??
         ref.read(profilePrefsServiceProvider).load();
     final session = auth.session;
-    final onboarded =
-        auth.profile?.onboarded == true || cached?.onboarded == true;
+    final onboarded = (auth.profile?.id == session?.user.id &&
+            auth.profile?.onboarded == true) ||
+        (cached?.userId == session?.user.id && cached?.onboarded == true);
 
     if (!mounted) return;
     if (session != null && !auth.pendingPasswordRecovery) {

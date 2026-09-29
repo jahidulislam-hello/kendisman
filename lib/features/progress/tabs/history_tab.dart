@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/data/progress_mock_data.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
-class HistoryTab extends StatefulWidget {
+class HistoryTab extends ConsumerStatefulWidget {
   final ProgressWorkout? selectedWorkout;
   final ValueChanged<ProgressWorkout> onSelectWorkout;
   final VoidCallback onClearSelection;
@@ -17,20 +19,18 @@ class HistoryTab extends StatefulWidget {
   });
 
   @override
-  State<HistoryTab> createState() => _HistoryTabState();
+  ConsumerState<HistoryTab> createState() => _HistoryTabState();
 }
 
-class _HistoryTabState extends State<HistoryTab> {
+class _HistoryTabState extends ConsumerState<HistoryTab> {
   String _dateRange = 'All time';
   final Set<String> _muscles = {};
   final Set<String> _routines = {};
   String _workoutName = 'Quick Workout';
-  /// When true, History mirrors screenshot 01 (no workouts).
-  bool _forceEmpty = false;
+  List<ProgressWorkout> _workouts = const [];
 
   List<ProgressWorkout> get _filtered {
-    if (_forceEmpty) return const [];
-    return ProgressMockData.workouts.where((w) {
+    return _workouts.where((w) {
       if (_muscles.isNotEmpty) {
         final tags = w.exercises.join(' ').toLowerCase();
         final matchMuscle = _muscles.any((m) {
@@ -45,7 +45,7 @@ class _HistoryTabState extends State<HistoryTab> {
         if (!matchMuscle) return false;
       }
       if (_routines.isNotEmpty && !_routines.contains(w.routineTag)) return false;
-      final now = DateTime(2026, 9, 16);
+      final now = DateTime.now();
       if (_dateRange == 'This week') {
         return w.date.isAfter(now.subtract(const Duration(days: 7)));
       }
@@ -64,25 +64,102 @@ class _HistoryTabState extends State<HistoryTab> {
       _dateRange = 'All time';
       _muscles.clear();
       _routines.clear();
-      _forceEmpty = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
+    final history = ref.watch(workoutHistoryProvider);
+    if (history.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (history.hasError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Could not load workout history: ${history.error}',
+                  style: TextStyle(color: colors.textPrimary),
+                  textAlign: TextAlign.center),
+              TextButton(
+                onPressed: () => ref.invalidate(workoutHistoryProvider),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final rawHistory = history.value ?? const <Map<String, dynamic>>[];
+    final orderedHistory = rawHistory.toList()
+      ..sort((a, b) => DateTime.parse(a['started_at'] as String)
+          .compareTo(DateTime.parse(b['started_at'] as String)));
+    final bestByExercise = <String, double>{};
+    final recordsBySession = <String, int>{};
+    for (final session in orderedHistory) {
+      final setRows = (session['logged_sets'] as List? ?? const [])
+          .cast<Map<String, dynamic>>();
+      final sessionBest = <String, double>{};
+      for (final set in setRows) {
+        final exerciseId = set['exercise_id'] as String;
+        final weight = (set['weight'] as num?)?.toDouble() ?? 0;
+        final reps = (set['reps'] as num?)?.toInt() ?? 0;
+        final estimate = reps > 0 ? weight * (1 + reps / 30) : weight;
+        if (estimate > (sessionBest[exerciseId] ?? 0)) {
+          sessionBest[exerciseId] = estimate;
+        }
+      }
+      var records = 0;
+      for (final entry in sessionBest.entries) {
+        if (entry.value > (bestByExercise[entry.key] ?? 0)) {
+          records++;
+          bestByExercise[entry.key] = entry.value;
+        }
+      }
+      recordsBySession[session['id'] as String] = records;
+    }
+    _workouts = rawHistory
+        .map((row) => _toProgressWorkout(
+              row,
+              records: recordsBySession[row['id'] as String] ?? 0,
+            ))
+        .toList();
     if (widget.selectedWorkout != null) {
       return _SessionDetail(
         workout: widget.selectedWorkout!,
         workoutName: widget.selectedWorkout!.routineTag == 'Quick Workout'
             ? _workoutName
             : widget.selectedWorkout!.routineTag,
-        onNameChanged: (n) => setState(() => _workoutName = n),
+        onNameChanged: (n) async {
+          try {
+            await ref.read(fitnessDataServiceProvider).renameQuickWorkout(
+                  widget.selectedWorkout!.id,
+                  n,
+                );
+            if (mounted) {
+              setState(() {
+                _workoutName = n;
+                ref.invalidate(workoutHistoryProvider);
+              });
+            }
+          } catch (error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Could not rename workout: $error')),
+              );
+            }
+          }
+        },
         onBack: widget.onClearSelection,
       );
     }
 
     final items = _filtered;
+    final routineTags = _workouts.map((workout) => workout.routineTag).toSet().toList()
+      ..sort();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -123,6 +200,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     } else {
                       _muscles.add(m);
                     }
+
                   }),
                 ),
               );
@@ -135,7 +213,7 @@ class _HistoryTabState extends State<HistoryTab> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ProgressMockData.routineDays.map((r) {
+            children: routineTags.map((r) {
               final selected = _routines.contains(r);
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -157,12 +235,9 @@ class _HistoryTabState extends State<HistoryTab> {
         const SizedBox(height: 18),
         Row(
           children: [
-            GestureDetector(
-              onLongPress: () => setState(() => _forceEmpty = !_forceEmpty),
-              child: Text(
+            Text(
                 '(${items.length}) workouts',
                 style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-              ),
             ),
             const Spacer(),
             GestureDetector(
@@ -186,6 +261,73 @@ class _HistoryTabState extends State<HistoryTab> {
                 ),
               )),
       ],
+    );
+  }
+
+  ProgressWorkout _toProgressWorkout(
+    Map<String, dynamic> row, {
+    required int records,
+  }) {
+    final started = DateTime.parse(row['started_at'] as String).toLocal();
+    final completed = DateTime.parse(row['completed_at'] as String).toLocal();
+    final routine = row['routines'] as Map<String, dynamic>?;
+    final title = routine?['name'] as String? ??
+        row['quick_workout_name'] as String? ??
+        'Quick Workout';
+    final rawSets = (row['logged_sets'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final set in rawSets) {
+      final exerciseId = set['exercise_id'] as String? ?? '';
+      grouped.putIfAbsent(exerciseId, () => []).add(set);
+    }
+    final sessionExercises = <SessionExercise>[];
+    final names = <String>[];
+    var volume = 0.0;
+    for (final entry in grouped.entries) {
+      final first = entry.value.first;
+      final exercise = first['exercises'] as Map<String, dynamic>? ?? {};
+      final name = exercise['name'] as String? ?? 'Exercise';
+      final muscle = exercise['muscle_group'] as String? ?? '';
+      final equipment = exercise['equipment_type'] as String? ?? '';
+      names.add(name);
+      final sets = entry.value.map((set) {
+        final weight = (set['weight'] as num?)?.toDouble() ?? 0;
+        final reps = (set['reps'] as num?)?.toInt() ?? 0;
+        volume += weight * reps;
+        final oneRm = reps > 0 ? weight * (1 + reps / 30) : weight;
+        return SessionSet(
+          set: (set['set_index'] as num?)?.toInt() ?? 0,
+          weightReps: '${weight.toStringAsFixed(1)} lb × $reps reps',
+          oneRm: '${oneRm.toStringAsFixed(1)} lb',
+        );
+      }).toList();
+      sessionExercises.add(SessionExercise(
+        name: name,
+        subtitle: [muscle, equipment].where((part) => part.isNotEmpty).join(' • '),
+        initials: name
+            .split(' ')
+            .where((part) => part.isNotEmpty)
+            .take(2)
+            .map((part) => part[0].toUpperCase())
+            .join(),
+        sets: sets,
+      ));
+    }
+    final duration = completed.difference(started).inMinutes;
+    return ProgressWorkout(
+      id: row['id'] as String,
+      title: DateFormat('EEEE').format(started),
+      date: started,
+      time: DateFormat('HH:mm').format(started),
+      routineTag: title,
+      tagAccent: routine != null,
+      exercises: names,
+      setsLogged: rawSets.length,
+      duration: '${duration}m',
+      volume: '${volume.toStringAsFixed(0)} lb',
+      records: records,
+      sessionExercises: sessionExercises,
     );
   }
 }
@@ -374,8 +516,6 @@ class _SessionDetail extends StatelessWidget {
               Text(workoutName, style: TextStyle(color: sheetColors.textSecondary, fontSize: 14)),
               const SizedBox(height: 16),
               _menuRow(ctx, Icons.edit_outlined, 'Edit Workout Name', 'edit'),
-              _menuRow(ctx, Icons.schedule_outlined, 'Adjust Start/End Time', 'time'),
-              _menuRow(ctx, Icons.note_alt_outlined, 'Add Note', 'note'),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,

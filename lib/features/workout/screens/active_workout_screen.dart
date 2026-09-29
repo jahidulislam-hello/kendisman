@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/exercise_options_sheet.dart';
 import 'package:fitzella/features/workout/sheets/finish_workout_sheet.dart';
@@ -65,6 +66,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                     onPressed: () => Navigator.pop(context),
                     icon: Icon(Icons.chevron_left, color: colors.textPrimary, size: 28),
                   ),
+                  if (state.saving) ...[
+                    const SizedBox(height: 8),
+                    const LinearProgressIndicator(),
+                  ],
+                  if (state.backendError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      state.backendError!,
+                      style: TextStyle(color: colors.danger, fontSize: 12),
+                    ),
+                  ],
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -76,20 +88,29 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                   const Spacer(),
                   if (state.canFinish)
                     ElevatedButton(
-                      onPressed: () async {
+                      onPressed: state.saving ? null : () async {
                         final unfinished = state.totalSets - state.loggedSets;
                         if (unfinished > 0) {
                           final action = await showFinishWorkoutSheet(context, unfinished);
                           if (action == FinishAction.complete) {
-                            notifier.completeAllUnfinished();
-                            if (context.mounted) context.pushReplacement('/workout/summary');
+                            await notifier.completeAllUnfinished();
+                            if (context.mounted && notifier.currentState.finished) {
+                              ref.invalidate(workoutHistoryProvider);
+                              context.pushReplacement('/workout/summary');
+                            }
                           } else if (action == FinishAction.discard) {
-                            notifier.discardSetsAndFinish();
-                            if (context.mounted) context.pushReplacement('/workout/summary');
+                            await notifier.discardSetsAndFinish();
+                            if (context.mounted && notifier.currentState.finished) {
+                              ref.invalidate(workoutHistoryProvider);
+                              context.pushReplacement('/workout/summary');
+                            }
                           }
                         } else {
-                          notifier.completeAllUnfinished();
-                          if (context.mounted) context.pushReplacement('/workout/summary');
+                          await notifier.completeAllUnfinished();
+                          if (context.mounted && notifier.currentState.finished) {
+                            ref.invalidate(workoutHistoryProvider);
+                            context.pushReplacement('/workout/summary');
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -223,7 +244,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                       ),
                                       const SizedBox(width: 6),
                                       GestureDetector(
-                                        onTap: () => notifier.toggleSet(ei, si),
+                                        onTap: state.saving ? null : () => notifier.toggleSet(ei, si),
                                         child: Container(
                                           width: 28,
                                           height: 28,
@@ -289,7 +310,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                     onPressed: () async {
                       final id = await context.push<String>('/workout/add-exercise');
                       if (id != null) {
-                        notifier.addExercise(WorkoutCatalog.byId(id));
+                        await notifier.addExerciseFromLibrary(id);
                       }
                     },
                     style: OutlinedButton.styleFrom(
@@ -302,8 +323,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () {
-                      notifier.discardWorkout();
+                    onPressed: state.saving ? null : () async {
+                      await notifier.discardWorkout();
+                      if (!context.mounted) return;
+                      if (notifier.currentState.backendError != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(notifier.currentState.backendError!)),
+                        );
+                        return;
+                      }
                       Navigator.pop(context);
                     },
                     child: Text('Discard workout', style: TextStyle(color: colors.danger, fontWeight: FontWeight.w700)),

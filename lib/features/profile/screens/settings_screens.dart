@@ -5,27 +5,35 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/core/models/profile/user_profile.dart' as profile_model;
+import 'package:fitzella/core/providers/auth_provider.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/profile/widgets/profile_widgets.dart';
 
 final unitsProvider = StateNotifierProvider<UnitsNotifier, UnitsState>((ref) {
-  return UnitsNotifier(ref.watch(sharedPreferencesProvider));
+  final notifier = UnitsNotifier(ref.watch(sharedPreferencesProvider), ref);
+  notifier.loadFromServer();
+  return notifier;
 });
 
 class UnitsState {
   final String weight; // lb | kg
   final String distance; // mi | km
   final String body; // in | cm
+  final String? error;
 
   const UnitsState({
     this.weight = 'lb',
     this.distance = 'mi',
     this.body = 'in',
+    this.error,
   });
 
-  UnitsState copyWith({String? weight, String? distance, String? body}) => UnitsState(
+  UnitsState copyWith({String? weight, String? distance, String? body, String? error}) => UnitsState(
         weight: weight ?? this.weight,
         distance: distance ?? this.distance,
         body: body ?? this.body,
+        error: error,
       );
 
   String get weightLabel => weight == 'lb' ? 'Pounds (lb)' : 'Kilograms (kg)';
@@ -33,23 +41,56 @@ class UnitsState {
 
 class UnitsNotifier extends StateNotifier<UnitsState> {
   final SharedPreferences prefs;
-  UnitsNotifier(this.prefs) : super(UnitsState(
+  final Ref ref;
+  UnitsNotifier(this.prefs, this.ref) : super(UnitsState(
           weight: prefs.getString('unit_weight') ?? 'lb',
           distance: prefs.getString('unit_distance') ?? 'mi',
           body: prefs.getString('unit_body') ?? 'in',
         ));
 
+  Future<void> loadFromServer() async {
+    try {
+      final values = await ref.read(fitnessDataServiceProvider).fetchAccountPreferences();
+      final weight = values['unit_preference'] as String? ?? state.weight;
+      final distance = values['distance_preference'] as String? ?? state.distance;
+      final body = values['body_measurement_preference'] as String? ?? state.body;
+      await prefs.setString('unit_weight', weight);
+      await prefs.setString('unit_distance', distance);
+      await prefs.setString('unit_body', body);
+      state = state.copyWith(weight: weight, distance: distance, body: body);
+    } catch (error) {
+      state = state.copyWith(error: 'Could not load account preferences: $error');
+    }
+  }
+
   Future<void> setWeight(String v) async {
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .updateUnitPreference(v == 'kg'
+            ? profile_model.UnitPreference.kg
+            : profile_model.UnitPreference.lb);
+    result.when(
+      success: (_) {},
+      error: (message) => throw StateError(message),
+    );
     await prefs.setString('unit_weight', v);
     state = state.copyWith(weight: v);
   }
 
   Future<void> setDistance(String v) async {
+    await ref.read(fitnessDataServiceProvider).updateAccountPreference(
+          'distance_preference',
+          v,
+        );
     await prefs.setString('unit_distance', v);
     state = state.copyWith(distance: v);
   }
 
   Future<void> setBody(String v) async {
+    await ref.read(fitnessDataServiceProvider).updateAccountPreference(
+          'body_measurement_preference',
+          v,
+        );
     await prefs.setString('unit_body', v);
     state = state.copyWith(body: v);
   }
@@ -75,19 +116,19 @@ class AppearanceScreen extends ConsumerWidget {
                 icon: Icons.wb_sunny_outlined,
                 label: 'Light',
                 selected: selected == ThemePreference.light,
-                onTap: () => ref.read(themeNotifierProvider.notifier).setPreference(ThemePreference.light),
+                onTap: () => _saveTheme(context, ref, ThemePreference.light),
               ),
               _ThemeRow(
                 icon: Icons.dark_mode_outlined,
                 label: 'Dark',
                 selected: selected == ThemePreference.dark,
-                onTap: () => ref.read(themeNotifierProvider.notifier).setPreference(ThemePreference.dark),
+                onTap: () => _saveTheme(context, ref, ThemePreference.dark),
               ),
               _ThemeRow(
                 icon: Icons.contrast,
                 label: 'System',
                 selected: selected == ThemePreference.system,
-                onTap: () => ref.read(themeNotifierProvider.notifier).setPreference(ThemePreference.system),
+                onTap: () => _saveTheme(context, ref, ThemePreference.system),
               ),
             ],
           ),
@@ -97,6 +138,22 @@ class AppearanceScreen extends ConsumerWidget {
             style: TextStyle(color: colors.textSecondary, fontSize: 13),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _saveTheme(
+      BuildContext context, WidgetRef ref, ThemePreference preference) async {
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .updateThemePreference(
+          profile_model.ThemePreference.values.byName(preference.name),
+        );
+    result.when(
+      success: (_) =>
+          ref.read(themeNotifierProvider.notifier).setPreference(preference),
+      error: (message) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save appearance: $message')),
       ),
     );
   }
@@ -174,13 +231,19 @@ class UnitsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
+          if (units.error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(units.error!,
+                  style: TextStyle(color: colors.danger)),
+            ),
           const ProfileSectionLabel('Weight'),
           _Segment(
             left: 'Kilograms (kg)',
             right: 'Pounds (lb)',
             leftSelected: units.weight == 'kg',
-            onLeft: () => ref.read(unitsProvider.notifier).setWeight('kg'),
-            onRight: () => ref.read(unitsProvider.notifier).setWeight('lb'),
+            onLeft: () => _setWeight(context, ref, 'kg'),
+            onRight: () => _setWeight(context, ref, 'lb'),
           ),
           const SizedBox(height: 18),
           const ProfileSectionLabel('Distance'),
@@ -188,8 +251,8 @@ class UnitsScreen extends ConsumerWidget {
             left: 'Kilometers',
             right: 'Miles',
             leftSelected: units.distance == 'km',
-            onLeft: () => ref.read(unitsProvider.notifier).setDistance('km'),
-            onRight: () => ref.read(unitsProvider.notifier).setDistance('mi'),
+            onLeft: () => _setDistance(context, ref, 'km'),
+            onRight: () => _setDistance(context, ref, 'mi'),
           ),
           const SizedBox(height: 18),
           const ProfileSectionLabel('Body measurements'),
@@ -197,8 +260,8 @@ class UnitsScreen extends ConsumerWidget {
             left: 'Centimeters (cm)',
             right: 'Inches (in)',
             leftSelected: units.body == 'cm',
-            onLeft: () => ref.read(unitsProvider.notifier).setBody('cm'),
-            onRight: () => ref.read(unitsProvider.notifier).setBody('in'),
+            onLeft: () => _setBody(context, ref, 'cm'),
+            onRight: () => _setBody(context, ref, 'in'),
           ),
           const SizedBox(height: 18),
           Text(
@@ -208,6 +271,45 @@ class UnitsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _setWeight(
+      BuildContext context, WidgetRef ref, String preference) async {
+    try {
+      await ref.read(unitsProvider.notifier).setWeight(preference);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save weight units: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _setDistance(
+      BuildContext context, WidgetRef ref, String preference) async {
+    try {
+      await ref.read(unitsProvider.notifier).setDistance(preference);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save distance units: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _setBody(
+      BuildContext context, WidgetRef ref, String preference) async {
+    try {
+      await ref.read(unitsProvider.notifier).setBody(preference);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save measurement units: $error')),
+        );
+      }
+    }
   }
 }
 
@@ -275,23 +377,49 @@ class LanguageScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
+    final preferences = ref.watch(accountPreferencesProvider);
     const langs = ['English', 'Spanish', 'French', 'German', 'Portuguese'];
     return ProfileScaffold(
       title: 'Language',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          ProfileGroupCard(
-            children: langs
+          preferences.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Column(
+              children: [
+                Text('Could not load language preference: $error',
+                    style: TextStyle(color: colors.textPrimary)),
+                TextButton(
+                  onPressed: () => ref.invalidate(accountPreferencesProvider),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+            data: (values) => ProfileGroupCard(
+              children: langs
                 .map((l) => ProfileSettingsTile(
                       icon: Icons.language,
                       title: l,
-                      trailing: l == 'English'
+                      trailing: l == values['language_preference']
                           ? Icon(Icons.check_circle, color: colors.accent, size: 20)
                           : Icon(Icons.circle_outlined, color: colors.border, size: 20),
-                      onTap: () => Navigator.pop(context),
+                      onTap: () async {
+                        try {
+                          await ref.read(fitnessDataServiceProvider)
+                              .updateAccountPreference('language_preference', l);
+                          ref.invalidate(accountPreferencesProvider);
+                        } catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Could not save language: $error')),
+                            );
+                          }
+                        }
+                      },
                     ))
                 .toList(),
+          ),
           ),
         ],
       ),
@@ -307,13 +435,40 @@ class RestTimerSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _RestTimerSettingsScreenState extends ConsumerState<RestTimerSettingsScreen> {
-  bool enabled = true;
-  String duration = 'Auto';
   String sound = 'Default';
+
+  Future<void> _setEnabled(bool value) async {
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .updateRestTimerEnabled(value);
+    result.when(
+      success: (_) {},
+      error: (message) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save timer setting: $message')),
+      ),
+    );
+  }
+
+  Future<void> _setDuration(String value) async {
+    final seconds = value == 'Auto' ? null : int.parse(value.replaceAll('s', ''));
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .updateRestTimerDefaultOverride(seconds);
+    result.when(
+      success: (_) {},
+      error: (message) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save timer duration: $message')),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
+    final profile = ref.watch(currentProfileProvider);
+    final enabled = profile?.restTimerEnabled ?? true;
+    final override = profile?.restTimerDefaultOverrideSeconds;
+    final duration = override == null ? 'Auto' : '${override}s';
     return ProfileScaffold(
       title: 'Rest Timer',
       body: ListView(
@@ -329,7 +484,7 @@ class _RestTimerSettingsScreenState extends ConsumerState<RestTimerSettingsScree
                     Switch.adaptive(
                       value: enabled,
                       activeColor: colors.accent,
-                      onChanged: (v) => setState(() => enabled = v),
+                      onChanged: _setEnabled,
                     ),
                   ],
                 ),
@@ -351,7 +506,7 @@ class _RestTimerSettingsScreenState extends ConsumerState<RestTimerSettingsScree
                       ),
                     ),
                   );
-                  if (v != null) setState(() => duration = v);
+                  if (v != null) await _setDuration(v);
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -392,21 +547,49 @@ class TimerSoundScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(appColorsProvider);
+    final preferences = ref.watch(accountPreferencesProvider);
     const sounds = ['Default', 'Beep', 'Chime', 'Bell', 'Silent'];
     return ProfileScaffold(
       title: 'Timer Sound',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          ProfileGroupCard(
-            children: sounds
+          preferences.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Column(
+              children: [
+                Text('Could not load timer sound preference: $error',
+                    style: TextStyle(color: colors.textPrimary)),
+                TextButton(
+                  onPressed: () => ref.invalidate(accountPreferencesProvider),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+            data: (values) => ProfileGroupCard(
+              children: sounds
                 .map((s) => ProfileSettingsTile(
                       icon: Icons.music_note_outlined,
                       title: s,
-                      trailing: s == 'Default' ? Icon(Icons.check_circle, color: colors.accent) : null,
-                      onTap: () => Navigator.pop(context),
+                      trailing: s == values['timer_sound_preference']
+                          ? Icon(Icons.check_circle, color: colors.accent)
+                          : null,
+                      onTap: () async {
+                        try {
+                          await ref.read(fitnessDataServiceProvider)
+                              .updateAccountPreference('timer_sound_preference', s);
+                          ref.invalidate(accountPreferencesProvider);
+                        } catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Could not save timer sound: $error')),
+                            );
+                          }
+                        }
+                      },
                     ))
                 .toList(),
+          ),
           ),
         ],
       ),

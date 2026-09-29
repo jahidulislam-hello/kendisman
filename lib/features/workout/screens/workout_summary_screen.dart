@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 
@@ -36,9 +38,17 @@ class _WorkoutCompleteScreenState extends ConsumerState<WorkoutCompleteScreen> w
     final volume = workout.exercises.fold<double>(0, (p, e) {
       return p + e.sets.where((s) => s.done).fold<double>(0, (sp, s) => sp + (s.weight * s.reps));
     });
-    final top = workout.exercises.isEmpty
-        ? null
-        : workout.exercises.first;
+    final duration = workout.startedAt == null
+        ? 0
+        : DateTime.now().difference(workout.startedAt!).inMinutes;
+    final workoutDate = workout.startedAt == null
+        ? ''
+        : DateFormat('d MMM yyyy').format(workout.startedAt!.toLocal());
+    final muscles = workout.exercises
+        .map((exercise) => exercise.muscle)
+        .where((muscle) => muscle.isNotEmpty)
+        .toSet()
+        .join(' · ');
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -67,7 +77,7 @@ class _WorkoutCompleteScreenState extends ConsumerState<WorkoutCompleteScreen> w
                 Text('Great work!', textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Text(
-                  '${workout.title.isEmpty ? 'Day 1' : workout.title} · 5 Sept',
+                  '${workout.title.isEmpty ? 'Workout' : workout.title}${workoutDate.isEmpty ? '' : ' · $workoutDate'}',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.textSecondary),
                 ),
@@ -82,9 +92,9 @@ class _WorkoutCompleteScreenState extends ConsumerState<WorkoutCompleteScreen> w
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Expanded(child: _stat(colors, '42m', 'Duration')),
+                    Expanded(child: _stat(colors, '${duration}m', 'Duration')),
                     const SizedBox(width: 10),
-                    Expanded(child: _stat(colors, '1:15', 'Avg rest')),
+                    Expanded(child: _stat(colors, '—', 'Avg rest')),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -103,7 +113,7 @@ class _WorkoutCompleteScreenState extends ConsumerState<WorkoutCompleteScreen> w
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-                        child: Text(top?.muscle ?? 'Full Body', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w700)),
+                        child: Text(muscles.isEmpty ? 'No muscle data' : muscles, style: TextStyle(color: colors.accent, fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ),
@@ -160,7 +170,7 @@ class _WorkoutCompleteScreenState extends ConsumerState<WorkoutCompleteScreen> w
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('42m', style: TextStyle(color: colors.onAccent, fontSize: 28, fontWeight: FontWeight.w800)),
+                              Text('${duration}m', style: TextStyle(color: colors.onAccent, fontSize: 28, fontWeight: FontWeight.w800)),
                               Text('DURATION', style: TextStyle(color: colors.onAccent.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w700)),
                             ],
                           ),
@@ -307,8 +317,10 @@ class WorkoutNewRoutineScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkoutNewRoutineScreenState extends ConsumerState<WorkoutNewRoutineScreen> {
-  final name = TextEditingController(text: 'Push day');
+  final name = TextEditingController();
   final List<String> exerciseIds = [];
+  bool _saving = false;
+  String? _saveError;
 
   @override
   void dispose() {
@@ -316,9 +328,56 @@ class _WorkoutNewRoutineScreenState extends ConsumerState<WorkoutNewRoutineScree
     super.dispose();
   }
 
+  Future<void> _saveRoutine(Map<String, Map<String, dynamic>> exercisesById) async {
+    if (name.text.trim().isEmpty || exerciseIds.isEmpty) {
+      setState(() => _saveError = 'Enter a routine name and add at least one exercise.');
+      return;
+    }
+    if (exerciseIds.any((id) => !exercisesById.containsKey(id))) {
+      setState(() => _saveError = 'Some selected exercises are no longer available. Remove them and try again.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      await ref.read(fitnessDataServiceProvider).createProgram(
+            name: name.text.trim(),
+            days: [
+              exerciseIds.map((id) {
+                final exercise = exercisesById[id]!;
+                return <String, dynamic>{
+                  'id': id,
+                  'name': exercise['name'] as String,
+                  'sets': '3',
+                  'reps': '8',
+                  'weight': '0',
+                };
+              }).toList(),
+            ],
+          );
+      ref.invalidate(routineLibraryProvider);
+      ref.invalidate(homeSummaryProvider);
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _saveError = 'Could not save routine: $error';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
+    final exerciseCatalog = ref.watch(exerciseCatalogProvider);
+    final exercisesById = {
+      for (final exercise in exerciseCatalog.valueOrNull ?? const <Map<String, dynamic>>[])
+        exercise['id'] as String: exercise,
+    };
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
@@ -331,8 +390,10 @@ class _WorkoutNewRoutineScreenState extends ConsumerState<WorkoutNewRoutineScree
                   IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.chevron_left, color: colors.textPrimary)),
                   Expanded(child: Text('New Routine', textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700))),
                   TextButton(
-                    onPressed: exerciseIds.isEmpty ? null : () => Navigator.pop(context),
-                    child: Text('SAVE', style: TextStyle(color: exerciseIds.isEmpty ? colors.textMuted : colors.accent, fontWeight: FontWeight.w800)),
+                    onPressed: _saving || exerciseIds.isEmpty ? null : () => _saveRoutine(exercisesById),
+                    child: _saving
+                        ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent))
+                        : Text('SAVE', style: TextStyle(color: exerciseIds.isEmpty ? colors.textMuted : colors.accent, fontWeight: FontWeight.w800)),
                   ),
                 ],
               ),
@@ -358,22 +419,55 @@ class _WorkoutNewRoutineScreenState extends ConsumerState<WorkoutNewRoutineScree
                     Text('Add at least one exercise.', style: TextStyle(color: colors.danger, fontWeight: FontWeight.w600)),
                   ],
                   const SizedBox(height: 16),
-                  ...exerciseIds.map((id) {
-                    final e = WorkoutCatalog.byId(id);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: colors.border)),
-                      child: Text(e.name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                    );
-                  }),
+                  if (exerciseCatalog.isLoading)
+                    const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+                  else if (exerciseCatalog.hasError)
+                    TextButton.icon(
+                      onPressed: () => ref.invalidate(exerciseCatalogProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Could not load exercises. Retry.'),
+                    )
+                  else
+                    ...exerciseIds.map((id) {
+                      final exercise = exercisesById[id];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: colors.border)),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                exercise?['name'] as String? ?? 'Unavailable exercise',
+                                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _saving ? null : () => setState(() => exerciseIds.remove(id)),
+                              icon: Icon(Icons.close, color: colors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  if (_saveError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_saveError!, style: TextStyle(color: colors.danger, fontWeight: FontWeight.w600)),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () async {
+                      onPressed: _saving || exerciseCatalog.isLoading || exerciseCatalog.hasError
+                          ? null
+                          : () async {
                         final id = await context.push<String>('/workout/add-exercise');
-                        if (id != null) setState(() => exerciseIds.add(id));
+                        if (id != null && mounted) {
+                          setState(() {
+                            if (!exerciseIds.contains(id)) exerciseIds.add(id);
+                            _saveError = null;
+                          });
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.accent,

@@ -90,7 +90,6 @@ class _AppTextFieldState extends ConsumerState<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
-    final hasError = widget.errorText != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

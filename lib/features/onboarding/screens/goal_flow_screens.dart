@@ -37,7 +37,8 @@ class OnboardingGoalScreen extends ConsumerWidget {
             icon: Icons.track_changes,
             step: 6,
             title: 'What is your top goal?',
-            subtitle: "We'll tailor your program to match your primary objective.",
+            subtitle:
+                "We'll tailor your program to match your primary objective.",
           ),
           const SizedBox(height: 22),
           Expanded(
@@ -51,7 +52,8 @@ class OnboardingGoalScreen extends ConsumerWidget {
                         title: o.$1,
                         subtitle: o.$2,
                         selected: selected == o.$1,
-                        onTap: () => ref.read(onboardingProvider.notifier).setGoal(o.$1),
+                        onTap: () =>
+                            ref.read(onboardingProvider.notifier).setGoal(o.$1),
                       ),
                     ),
                   )
@@ -105,7 +107,9 @@ class OnboardingEquipmentScreen extends ConsumerWidget {
                         title: o.$1,
                         subtitle: o.$2,
                         selected: selected == o.$1,
-                        onTap: () => ref.read(onboardingProvider.notifier).setEquipment(o.$1),
+                        onTap: () => ref
+                            .read(onboardingProvider.notifier)
+                            .setEquipment(o.$1),
                       ),
                     ),
                   )
@@ -159,7 +163,9 @@ class OnboardingExperienceScreen extends ConsumerWidget {
                         title: o.$1,
                         subtitle: o.$2,
                         selected: selected == o.$1,
-                        onTap: () => ref.read(onboardingProvider.notifier).setExperience(o.$1),
+                        onTap: () => ref
+                            .read(onboardingProvider.notifier)
+                            .setExperience(o.$1),
                       ),
                     ),
                   )
@@ -182,8 +188,7 @@ class OnboardingFrequencyScreen extends ConsumerWidget {
     final selected = ref.watch(onboardingProvider).frequency ?? 3;
 
     const options = [
-      (2, '2 days per week', 'Light — great for active recovery'
-      ),
+      (2, '2 days per week', 'Light — great for active recovery'),
       (3, '3 days per week', 'Balanced — ideal for most goals'),
       (4, '4 days per week', 'Focused — solid weekly volume'),
       (5, '5 days per week', 'Dedicated — serious commitment'),
@@ -201,7 +206,8 @@ class OnboardingFrequencyScreen extends ConsumerWidget {
             icon: Icons.sync,
             step: 9,
             title: 'How often do you want to work out?',
-            subtitle: 'Choose how many days per week you can commit to training.',
+            subtitle:
+                'Choose how many days per week you can commit to training.',
           ),
           const SizedBox(height: 22),
           Expanded(
@@ -215,7 +221,9 @@ class OnboardingFrequencyScreen extends ConsumerWidget {
                         title: o.$2,
                         subtitle: o.$3,
                         selected: selected == o.$1,
-                        onTap: () => ref.read(onboardingProvider.notifier).setFrequency(o.$1),
+                        onTap: () => ref
+                            .read(onboardingProvider.notifier)
+                            .setFrequency(o.$1),
                       ),
                     ),
                   )
@@ -254,21 +262,29 @@ class OnboardingAppleHealthScreen extends ConsumerWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
-                BoxShadow(color: const Color(0xFFFF3B30).withValues(alpha: 0.35), blurRadius: 24, spreadRadius: 2),
+                BoxShadow(
+                    color: const Color(0xFFFF3B30).withValues(alpha: 0.35),
+                    blurRadius: 24,
+                    spreadRadius: 2),
               ],
             ),
-            child: const Icon(Icons.favorite_border, color: Color(0xFFFF3B30), size: 42),
+            child: const Icon(Icons.favorite_border,
+                color: Color(0xFFFF3B30), size: 42),
           ),
           const SizedBox(height: 28),
           Text(
             'Apple Health',
-            style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800),
+            style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 28,
+                fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
           Text(
             'Connect Apple Health to automatically sync your workouts, active calories, heart rate, and more — keeping all your health data in one place.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: colors.textSecondary, fontSize: 15, height: 1.45),
+            style: TextStyle(
+                color: colors.textSecondary, fontSize: 15, height: 1.45),
           ),
           const SizedBox(height: 28),
           const Align(
@@ -289,7 +305,11 @@ class OnboardingAppleHealthScreen extends ConsumerWidget {
               ref.read(onboardingProvider.notifier).setAppleHealth(false);
               context.go('/onboarding/paywall');
             },
-            child: Text('Skip for now', style: TextStyle(color: colors.textMuted, fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Text('Skip for now',
+                style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
           ),
           const SizedBox(height: 4),
         ],
@@ -309,12 +329,14 @@ class _HealthBullet extends StatelessWidget {
         Container(
           width: 22,
           height: 22,
-          decoration: const BoxDecoration(color: kOnboardingGreen, shape: BoxShape.circle),
+          decoration: const BoxDecoration(
+              color: kOnboardingGreen, shape: BoxShape.circle),
           child: const Icon(Icons.check, size: 14, color: Colors.white),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(text, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 15)),
+          child: Text(text,
+              style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 15)),
         ),
       ],
     );
@@ -339,13 +361,21 @@ class OnboardingPaywallScreen extends ConsumerWidget {
             children: [
               const Text(
                 'LIMITED OFFER',
-                style: TextStyle(color: kOnboardingBlue, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1),
+                style: TextStyle(
+                    color: kOnboardingBlue,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1),
               ),
               const SizedBox(height: 12),
               Text(
                 'Start your 14-day\nfree trial',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textPrimary, fontSize: 30, fontWeight: FontWeight.w800, height: 1.15),
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15),
               ),
               const SizedBox(height: 10),
               Text(
@@ -362,7 +392,8 @@ class OnboardingPaywallScreen extends ConsumerWidget {
                 period: 'per year',
                 selected: plan == 'annual',
                 badge: 'SAVE 65%',
-                onTap: () => ref.read(onboardingProvider.notifier).setPlan('annual'),
+                onTap: () =>
+                    ref.read(onboardingProvider.notifier).setPlan('annual'),
               ),
               const SizedBox(height: 12),
               _PlanCard(
@@ -372,7 +403,8 @@ class OnboardingPaywallScreen extends ConsumerWidget {
                 price: '\$9.99',
                 period: 'per month',
                 selected: plan == 'monthly',
-                onTap: () => ref.read(onboardingProvider.notifier).setPlan('monthly'),
+                onTap: () =>
+                    ref.read(onboardingProvider.notifier).setPlan('monthly'),
               ),
               const SizedBox(height: 24),
               const _PaywallBullet('14-day free trial, no charge today'),
@@ -428,7 +460,9 @@ class _PlanCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: selected ? kOnboardingBlue : colors.border, width: selected ? 1.5 : 1),
+              border: Border.all(
+                  color: selected ? kOnboardingBlue : colors.border,
+                  width: selected ? 1.5 : 1),
             ),
             child: Row(
               children: [
@@ -436,17 +470,29 @@ class _PlanCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+                      Text(title,
+                          style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Text(subtitle, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                      Text(subtitle,
+                          style: TextStyle(
+                              color: colors.textSecondary, fontSize: 13)),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(price, style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
-                    Text(period, style: TextStyle(color: colors.textMuted, fontSize: 12)),
+                    Text(price,
+                        style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800)),
+                    Text(period,
+                        style:
+                            TextStyle(color: colors.textMuted, fontSize: 12)),
                   ],
                 ),
               ],
@@ -457,9 +503,16 @@ class _PlanCard extends StatelessWidget {
               top: -10,
               right: 14,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: kOnboardingBlue, borderRadius: BorderRadius.circular(20)),
-                child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: kOnboardingBlue,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(badge!,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800)),
               ),
             ),
         ],
@@ -478,7 +531,10 @@ class _PaywallBullet extends StatelessWidget {
       children: [
         const Icon(Icons.check, color: kOnboardingGreen, size: 20),
         const SizedBox(width: 10),
-        Expanded(child: Text(text, style: const TextStyle(color: Color(0xFF9B9BA5), fontSize: 14))),
+        Expanded(
+            child: Text(text,
+                style:
+                    const TextStyle(color: Color(0xFF9B9BA5), fontSize: 14))),
       ],
     );
   }
@@ -489,7 +545,8 @@ class OnboardingReadyScreen extends ConsumerStatefulWidget {
   const OnboardingReadyScreen({super.key});
 
   @override
-  ConsumerState<OnboardingReadyScreen> createState() => _OnboardingReadyScreenState();
+  ConsumerState<OnboardingReadyScreen> createState() =>
+      _OnboardingReadyScreenState();
 }
 
 class _OnboardingReadyScreenState extends ConsumerState<OnboardingReadyScreen> {
@@ -506,8 +563,8 @@ class _OnboardingReadyScreenState extends ConsumerState<OnboardingReadyScreen> {
     result.when(
       success: (_) => context.go('/home'),
       error: (message) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-        context.go('/home');
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       },
     );
   }
@@ -532,35 +589,46 @@ class _OnboardingReadyScreenState extends ConsumerState<OnboardingReadyScreen> {
                   color: colors.surface,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
-                    BoxShadow(color: kOnboardingGreen.withValues(alpha: 0.35), blurRadius: 28, spreadRadius: 2),
+                    BoxShadow(
+                        color: kOnboardingGreen.withValues(alpha: 0.35),
+                        blurRadius: 28,
+                        spreadRadius: 2),
                   ],
                 ),
                 child: Center(
                   child: Container(
                     width: 56,
                     height: 56,
-                    decoration: const BoxDecoration(color: kOnboardingGreen, shape: BoxShape.circle),
-                    child: const Icon(Icons.check, color: Colors.white, size: 32),
+                    decoration: const BoxDecoration(
+                        color: kOnboardingGreen, shape: BoxShape.circle),
+                    child:
+                        const Icon(Icons.check, color: Colors.white, size: 32),
                   ),
                 ),
               ),
               const SizedBox(height: 28),
               Text(
                 "You're ready!",
-                style: TextStyle(color: colors.textPrimary, fontSize: 30, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
               Text(
                 'Your personalised Fitzella program has been built. Time to start crushing your goals.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, fontSize: 15, height: 1.45),
+                style: TextStyle(
+                    color: colors.textSecondary, fontSize: 15, height: 1.45),
               ),
               const SizedBox(height: 28),
               _ReadyRow(colors: colors, text: 'Program tailored to your goals'),
               const SizedBox(height: 10),
               _ReadyRow(colors: colors, text: 'Progress tracking ready to go'),
               const SizedBox(height: 10),
-              _ReadyRow(colors: colors, text: apple ? 'Apple Health synced' : 'Apple Health skipped'),
+              _ReadyRow(
+                  colors: colors,
+                  text: apple ? 'Apple Health synced' : 'Apple Health skipped'),
               const Spacer(flex: 2),
               OnboardingPrimaryButton(
                 label: _saving ? 'Saving…' : 'Start Training',
@@ -595,12 +663,17 @@ class _ReadyRow extends StatelessWidget {
           Container(
             width: 22,
             height: 22,
-            decoration: const BoxDecoration(color: kOnboardingGreen, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+                color: kOnboardingGreen, shape: BoxShape.circle),
             child: const Icon(Icons.check, size: 14, color: Colors.black),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(text, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Text(text,
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
           ),
         ],
       ),

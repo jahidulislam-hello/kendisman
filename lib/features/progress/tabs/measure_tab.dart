@@ -1,306 +1,336 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
 
-class MeasureTab extends StatefulWidget {
+class MeasureTab extends ConsumerStatefulWidget {
   const MeasureTab({super.key});
 
   @override
-  State<MeasureTab> createState() => _MeasureTabState();
+  ConsumerState<MeasureTab> createState() => _MeasureTabState();
 }
 
-class _MeasureTabState extends State<MeasureTab> {
-  int _range = 3; // 1Y
+class _MeasureTabState extends ConsumerState<MeasureTab> {
+  int _range = 3;
   final _ranges = const ['1M', '3M', '6M', '1Y'];
+  bool _saving = false;
+
+  Future<void> _addMeasurement() async {
+    final weight = TextEditingController();
+    final bodyFat = TextEditingController();
+    final result = await showDialog<(double?, double?)>(
+      context: context,
+      builder: (context) {
+        final colors = progressColors(context);
+        return AlertDialog(
+          title: const Text('Log measurement'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: weight,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Body weight (lb)'),
+              ),
+              TextField(
+                controller: bodyFat,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Body fat (%)'),
+              ),
+              const SizedBox(height: 8),
+              Text('Leave a field blank if you are not recording it.',
+                  style: TextStyle(color: colors.textMuted, fontSize: 12)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final weightValue = weight.text.trim().isEmpty
+                    ? null
+                    : double.tryParse(weight.text.trim());
+                final fatValue = bodyFat.text.trim().isEmpty
+                    ? null
+                    : double.tryParse(bodyFat.text.trim());
+                if ((weight.text.trim().isNotEmpty && weightValue == null) ||
+                    (bodyFat.text.trim().isNotEmpty && fatValue == null) ||
+                    (weightValue == null && fatValue == null)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid measurement.')),
+                  );
+                  return;
+                }
+                Navigator.pop(context, (weightValue, fatValue));
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    weight.dispose();
+    bodyFat.dispose();
+    if (result == null) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(fitnessDataServiceProvider).addMeasurement(
+            measuredOn: DateTime.now(),
+            weightLb: result.$1,
+            bodyFatPct: result.$2,
+          );
+      ref.invalidate(bodyMeasurementsProvider);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save measurement: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = progressColors(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      children: [
-        Row(
-          children: List.generate(_ranges.length, (i) {
-            return Padding(
-              padding: EdgeInsets.only(right: i == _ranges.length - 1 ? 0 : 8),
-              child: ProgressChip(
-                label: _ranges[i],
-                selected: _range == i,
-                onTap: () => setState(() => _range = i),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 14),
-        ProgressSurfaceCard(
+    final measurements = ref.watch(bodyMeasurementsProvider);
+    return measurements.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text('BODY WEIGHT', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                  ),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colors.accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(Icons.monitor_weight_outlined, color: colors.accent, size: 18),
-                  ),
-                ],
+              Text('Could not load measurements: $error',
+                  style: TextStyle(color: colors.textPrimary),
+                  textAlign: TextAlign.center),
+              TextButton(
+                onPressed: () => ref.invalidate(bodyMeasurementsProvider),
+                child: const Text('Try again'),
               ),
-              const SizedBox(height: 6),
-              Text('175 lb', style: TextStyle(color: colors.textPrimary, fontSize: 32, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Row(
+            ],
+          ),
+        ),
+      ),
+      data: (rows) {
+        final cutoff = DateTime.now().subtract(
+          Duration(days: const [30, 90, 180, 365][_range]),
+        );
+        final filtered = rows.where((row) {
+          final date = DateTime.tryParse(row['measured_on'] as String? ?? '');
+          return date != null && !date.isBefore(cutoff);
+        }).toList();
+        final weights = filtered
+            .where((row) => row['weight_lb'] != null)
+            .toList()
+            .reversed
+            .toList();
+        final latestWeight = rows.firstWhere(
+          (row) => row['weight_lb'] != null,
+          orElse: () => <String, dynamic>{},
+        );
+        final latestFat = rows.firstWhere(
+          (row) => row['body_fat_pct'] != null,
+          orElse: () => <String, dynamic>{},
+        );
+        final spots = weights.asMap().entries.map((entry) {
+          return FlSpot(
+            entry.key.toDouble(),
+            (entry.value['weight_lb'] as num).toDouble(),
+          );
+        }).toList();
+        final values = spots.map((spot) => spot.y).toList();
+        final minY = values.isEmpty
+            ? 0.0
+            : values.reduce((a, b) => a < b ? a : b) - 2;
+        final maxY = values.isEmpty
+            ? 1.0
+            : values.reduce((a, b) => a > b ? a : b) + 2;
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Row(
+              children: List.generate(_ranges.length, (i) {
+                return Padding(
+                  padding: EdgeInsets.only(right: i == _ranges.length - 1 ? 0 : 8),
+                  child: ProgressChip(
+                    label: _ranges[i],
+                    selected: _range == i,
+                    onTap: () => setState(() => _range = i),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 14),
+            ProgressSurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const DeltaBadge(text: '-3.0 lb', down: true),
-                  const SizedBox(width: 8),
-                  Text('vs 1Y ago', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 90,
-                child: LineChart(
-                  LineChartData(
-                    minY: 174,
-                    maxY: 179,
-                    gridData: const FlGridData(show: false),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 28,
-                          getTitlesWidget: (v, m) {
-                            if (v == 178 || v == 175) {
-                              return Text(v.toInt().toString(), style: TextStyle(color: colors.textMuted, fontSize: 10));
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('BODY WEIGHT',
+                            style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5)),
                       ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: const [
-                          FlSpot(0, 178),
-                          FlSpot(1, 177.2),
-                          FlSpot(2, 176.5),
-                          FlSpot(3, 176.1),
-                          FlSpot(4, 175.4),
-                          FlSpot(5, 175),
-                        ],
-                        isCurved: true,
-                        color: colors.accent,
-                        barWidth: 2.5,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.accent.withValues(alpha: 0.35),
-                              colors.accent.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
+                      Icon(Icons.monitor_weight_outlined,
+                          color: colors.accent, size: 20),
                     ],
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        ProgressSurfaceCard(
-          child: Row(
-            children: [
-              SizedBox(
-                width: 78,
-                height: 78,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
+                  const SizedBox(height: 6),
+                  Text(
+                    latestWeight.isEmpty
+                        ? 'No weight recorded'
+                        : '${(latestWeight['weight_lb'] as num).toStringAsFixed(1)} lb',
+                    style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  if (spots.length > 1) ...[
+                    const SizedBox(height: 12),
                     SizedBox(
-                      width: 78,
-                      height: 78,
-                      child: CircularProgressIndicator(
-                        value: 0.82,
-                        strokeWidth: 8,
-                        backgroundColor: colors.border,
-                        color: const Color(0xFFF59E0B),
-                      ),
-                    ),
-                    Text('82%', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('BODY FAT', style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                    const SizedBox(height: 4),
-                    Text('18.2%', style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const DeltaBadge(text: '-0.8%', down: true),
-                        const SizedBox(width: 8),
-                        Text('this month', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Text('Measurements', style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text('inches', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-          ],
-        ),
-        const SizedBox(height: 10),
-        ProgressSurfaceCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              _MeasureRow(
-                iconColor: colors.accent,
-                label: 'Chest',
-                value: '42.0"',
-                delta: '+0.5"',
-                deltaUp: true,
-                spark: const [41.5, 41.6, 41.7, 41.8, 41.9, 42.0],
-                sparkEnd: '41.5"',
-                sparkColor: colors.accent,
-              ),
-              Divider(height: 1, color: colors.border),
-              _MeasureRow(
-                iconColor: const Color(0xFF22C55E),
-                label: 'Waist',
-                value: '32.0"',
-                delta: '-0.5"',
-                deltaUp: false,
-                spark: const [32.5, 32.4, 32.3, 32.2, 32.1, 32.0],
-                sparkEnd: '32.5"',
-                sparkColor: const Color(0xFF22C55E),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MeasureRow extends StatelessWidget {
-  final Color iconColor;
-  final String label;
-  final String value;
-  final String delta;
-  final bool deltaUp;
-  final List<double> spark;
-  final String sparkEnd;
-  final Color sparkColor;
-
-  const _MeasureRow({
-    required this.iconColor,
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.deltaUp,
-    required this.spark,
-    required this.sparkEnd,
-    required this.sparkColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = progressColors(context);
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.straighten, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (deltaUp ? colors.accent : colors.success).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        delta,
-                        style: TextStyle(
-                          color: deltaUp ? const Color(0xFF60A5FA) : colors.success,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                      height: 120,
+                      child: LineChart(
+                        LineChartData(
+                          minY: minY,
+                          maxY: maxY,
+                          gridData: const FlGridData(show: false),
+                          titlesData: const FlTitlesData(show: false),
+                          borderData: FlBorderData(show: false),
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: spots,
+                              isCurved: true,
+                              color: colors.accent,
+                              barWidth: 2.5,
+                              dotData: const FlDotData(show: true),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: colors.accent.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
+                  if (latestWeight.isNotEmpty)
+                    Text(
+                      'Recorded ${DateFormat('d MMM yyyy').format(DateTime.parse(latestWeight['measured_on'] as String))}',
+                      style: TextStyle(color: colors.textMuted, fontSize: 12),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            ProgressSurfaceCard(
+              child: Row(
+                children: [
+                  Icon(Icons.percent, color: colors.accent, size: 24),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('BODY FAT',
+                            style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5)),
+                        const SizedBox(height: 4),
+                        Text(
+                          latestFat.isEmpty
+                              ? 'No body-fat measurement'
+                              : '${(latestFat['body_fat_pct'] as num).toStringAsFixed(1)}%',
+                          style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Text('Measurement history',
+                    style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _saving ? null : _addMeasurement,
+                  icon: const Icon(Icons.add),
+                  label: Text(_saving ? 'Saving…' : 'Log'),
                 ),
               ],
             ),
-          ),
-          SizedBox(
-            width: 70,
-            height: 36,
-            child: LineChart(
-              LineChartData(
-                gridData: const FlGridData(show: false),
-                titlesData: const FlTitlesData(show: false),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(spark.length, (i) => FlSpot(i.toDouble(), spark[i])),
-                    isCurved: true,
-                    color: sparkColor,
-                    barWidth: 2,
-                    dotData: const FlDotData(show: false),
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  rows.isEmpty
+                      ? 'No measurements yet. Log your first body measurement.'
+                      : 'No measurements in this date range.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary),
+                ),
+              )
+            else
+              ...filtered.map((row) {
+                final date = DateTime.parse(row['measured_on'] as String);
+                final weight = row['weight_lb'] as num?;
+                final fat = row['body_fat_pct'] as num?;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ProgressSurfaceCard(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(DateFormat('d MMM yyyy').format(date),
+                              style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        if (weight != null)
+                          Text('${weight.toStringAsFixed(1)} lb',
+                              style: TextStyle(color: colors.textSecondary)),
+                        if (weight != null && fat != null)
+                          const SizedBox(width: 10),
+                        if (fat != null)
+                          Text('${fat.toStringAsFixed(1)}%',
+                              style: TextStyle(color: colors.textSecondary)),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              }),
+            const SizedBox(height: 8),
+            Text(
+              'Body measurements currently support weight and body-fat percentage.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted, fontSize: 12),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }

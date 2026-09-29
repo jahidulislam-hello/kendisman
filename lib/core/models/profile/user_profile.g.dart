@@ -42,6 +42,7 @@ _$UserProfileImpl _$$UserProfileImplFromJson(Map<String, dynamic> json) =>
       experienceLevel: $enumDecodeNullable(
           _$ExperienceLevelEnumMap, json['experience_level']),
       trainingDaysPerWeek: (json['training_days_per_week'] as num?)?.toInt(),
+      equipmentPreference: json['equipment_preference'] as String?,
       emailOptIn: json['email_opt_in'] as bool,
       referralSource: json['referral_source'] as String?,
       onboarded: json['onboarded'] as bool,
@@ -76,6 +77,7 @@ Map<String, dynamic> _$$UserProfileImplToJson(_$UserProfileImpl instance) =>
       'goal': _$TrainingGoalEnumMap[instance.goal],
       'experience_level': _$ExperienceLevelEnumMap[instance.experienceLevel],
       'training_days_per_week': instance.trainingDaysPerWeek,
+      'equipment_preference': instance.equipmentPreference,
       'email_opt_in': instance.emailOptIn,
       'referral_source': instance.referralSource,
       'onboarded': instance.onboarded,

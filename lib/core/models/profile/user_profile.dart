@@ -32,32 +32,36 @@ abstract class UserProfile with _$UserProfile {
     TrainingGoal? goal,
     ExperienceLevel? experienceLevel,
     int? trainingDaysPerWeek,
+    String? equipmentPreference,
     required bool emailOptIn,
     String? referralSource,
     required bool onboarded,
   }) = _UserProfile;
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) {
-    // Harden against partial / legacy rows from Postgres (null referral_code, etc.).
-    final data = Map<String, dynamic>.from(json);
-    data['referral_code'] ??= '';
-    data['email'] ??= '';
-    data['created_at'] = data['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String();
-    data['notifications_enabled'] ??= true;
-    data['rest_timer_enabled'] ??= true;
-    data['rpe_tracking_enabled'] ??= false;
-    data['trial_nudge_sent'] ??= false;
-    data['is_reviewer'] ??= false;
-    data['is_lifetime'] ??= false;
-    data['email_opt_in'] ??= false;
-    data['onboarded'] ??= false;
-    data['rest_timer_exercise_overrides'] ??= <String, dynamic>{};
-    data['mode'] ??= 'manual';
-    data['subscription_tier'] ??= 'free';
-    data['unit_preference'] ??= 'kg';
-    data['theme_preference'] ??= 'system';
-    return _$UserProfileFromJson(data);
-  }
+  factory UserProfile.fromJson(Map<String, dynamic> json) =>
+      _$UserProfileFromJson(_normalizeUserProfileJson(json));
+}
+
+Map<String, dynamic> _normalizeUserProfileJson(Map<String, dynamic> json) {
+  final data = Map<String, dynamic>.from(json);
+  data['referral_code'] ??= '';
+  data['email'] ??= '';
+  data['created_at'] = data['created_at']?.toString() ??
+      DateTime.now().toUtc().toIso8601String();
+  data['notifications_enabled'] ??= true;
+  data['rest_timer_enabled'] ??= true;
+  data['rpe_tracking_enabled'] ??= false;
+  data['trial_nudge_sent'] ??= false;
+  data['is_reviewer'] ??= false;
+  data['is_lifetime'] ??= false;
+  data['email_opt_in'] ??= false;
+  data['onboarded'] ??= false;
+  data['rest_timer_exercise_overrides'] ??= <String, dynamic>{};
+  data['mode'] ??= 'manual';
+  data['subscription_tier'] ??= 'free';
+  data['unit_preference'] ??= 'kg';
+  data['theme_preference'] ??= 'system';
+  return data;
 }
 
 enum UserMode {
@@ -172,7 +176,9 @@ extension TrainingGoalExtension on TrainingGoal {
         'strength' => TrainingGoal.strength,
         'fat_loss' || 'fatLoss' => TrainingGoal.fatLoss,
         'build_muscle' || 'buildMuscle' => TrainingGoal.buildMuscle,
-        'improve_endurance' || 'improveEndurance' => TrainingGoal.improveEndurance,
+        'improve_endurance' ||
+        'improveEndurance' =>
+          TrainingGoal.improveEndurance,
         'general_fitness' || 'generalFitness' => TrainingGoal.generalFitness,
         _ => TrainingGoal.muscle,
       };

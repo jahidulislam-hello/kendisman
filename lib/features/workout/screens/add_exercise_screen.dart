@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/filter_sheet.dart';
 
@@ -17,12 +18,18 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
   String muscle = 'All';
   final Set<String> equipment = {};
 
-  List<WorkoutExerciseDef> get filtered {
-    return WorkoutCatalog.exercises.where((e) {
+  List<Map<String, dynamic>> filtered(List<Map<String, dynamic>> rows) {
+    return rows.where((e) {
       final q = query.trim().toLowerCase();
-      if (q.isNotEmpty && !e.name.toLowerCase().contains(q)) return false;
-      if (muscle != 'All' && e.muscle != muscle) return false;
-      if (equipment.isNotEmpty && !equipment.contains(e.equipment)) return false;
+      final name = (e['name'] as String? ?? '').toLowerCase();
+      final group = e['muscle_group'] as String? ?? '';
+      final equipmentType = e['equipment_type'] as String? ?? '';
+      if (q.isNotEmpty && !name.contains(q)) return false;
+      if (muscle != 'All' && group.toLowerCase() != muscle.toLowerCase()) return false;
+      if (equipment.isNotEmpty &&
+          !equipment.any((item) => item.toLowerCase() == equipmentType.toLowerCase())) {
+        return false;
+      }
       return true;
     }).toList();
   }
@@ -30,7 +37,15 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
-    final items = filtered;
+    final catalog = ref.watch(exerciseCatalogProvider);
+    final rows = catalog.value ?? const <Map<String, dynamic>>[];
+    final items = filtered(rows);
+    final muscles = ['All', ...rows
+        .map((row) => row['muscle_group'] as String? ?? '')
+        .where((group) => group.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort()];
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -84,11 +99,13 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                   GestureDetector(
                     onTap: () async {
                       final result = await showFilterSheet(context, selected: equipment);
-                      if (result != null) setState(() {
-                        equipment
-                          ..clear()
-                          ..addAll(result);
-                      });
+                      if (result != null) {
+                        setState(() {
+                          equipment
+                            ..clear()
+                            ..addAll(result);
+                        });
+                      }
                     },
                     child: Container(
                       width: 46,
@@ -109,10 +126,10 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
-                itemCount: WorkoutCatalog.muscles.length,
+                itemCount: muscles.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) {
-                  final m = WorkoutCatalog.muscles[i];
+                  final m = muscles[i];
                   final selected = muscle == m;
                   return GestureDetector(
                     onTap: () => setState(() => muscle = m),
@@ -157,7 +174,26 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
               ),
             ),
             Expanded(
-              child: GridView.builder(
+              child: catalog.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Could not load exercise library: $error',
+                          style: TextStyle(color: colors.textPrimary)),
+                      TextButton(
+                        onPressed: () => ref.invalidate(exerciseCatalogProvider),
+                        child: const Text('Try again'),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (_) => items.isEmpty
+                    ? Center(
+                        child: Text('No exercises match these filters.',
+                            style: TextStyle(color: colors.textSecondary)))
+                    : GridView.builder(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -168,6 +204,8 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                 itemCount: items.length,
                 itemBuilder: (context, i) {
                   final e = items[i];
+                  final name = e['name'] as String? ?? 'Exercise';
+                  final group = e['muscle_group'] as String? ?? '';
                   return Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -187,18 +225,18 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                                 color: colors.background,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Icon(WorkoutCatalog.muscleIcon(e.muscle), color: colors.accent, size: 34),
+                              child: Icon(WorkoutCatalog.muscleIcon(group), color: colors.accent, size: 34),
                             ),
                           ),
                         ),
-                        Text(e.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
+                        Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
                         const SizedBox(height: 2),
-                        Text(e.muscle, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                        Text(group, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context, e.id),
+                            onPressed: () => Navigator.pop(context, e['id'] as String),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: colors.accent.withValues(alpha: 0.15),
                               foregroundColor: colors.accent,
@@ -214,6 +252,7 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                   );
                 },
               ),
+            ),
             ),
           ],
         ),
