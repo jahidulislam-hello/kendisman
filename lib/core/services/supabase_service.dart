@@ -27,8 +27,10 @@ Future<void> initializeSupabase() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
     httpClient: ApiLoggingClient(),
-    authOptions: const FlutterAuthClientOptions(
+    authOptions: FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
+      detectSessionInUriPredicate: (uri) =>
+          uri.host == 'login-callback' || uri.path.contains('login-callback'),
     ),
   );
 }

@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
-import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/filter_sheet.dart';
+import 'package:fitzella/features/workout/widgets/muscle_icon.dart';
 
 class WorkoutAddExerciseScreen extends ConsumerStatefulWidget {
   const WorkoutAddExerciseScreen({super.key});
@@ -65,7 +65,13 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 12),
-                    child: Text('Add exercise', style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
+                    child: Row(
+                      children: [
+                        Text('Add exercise', style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
+                        const SizedBox(width: 8),
+                        MuscleIcon(size: 24, color: colors.accent),
+                      ],
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 12, top: 4),
@@ -143,9 +149,12 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                             color: selected ? colors.accent.withValues(alpha: 0.15) : colors.surface,
                             border: Border.all(color: selected ? colors.accent : colors.border, width: selected ? 2 : 1),
                           ),
-                          child: Icon(
-                            WorkoutCatalog.muscleIcon(m),
-                            color: selected ? colors.accent : colors.textSecondary,
+                          child: Center(
+                            child: MuscleGroupIcon(
+                              muscle: m,
+                              size: 26,
+                              color: selected ? colors.accent : colors.textSecondary,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -167,6 +176,8 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Row(
                 children: [
+                  MuscleIcon(size: 16, color: colors.accent),
+                  const SizedBox(width: 6),
                   Text('All exercises', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
                   const Spacer(),
                   Text('${items.length}', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w700)),
@@ -220,21 +231,38 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                           child: Center(
                             child: Container(
                               width: 72,
-
                               height: 72,
                               decoration: BoxDecoration(
                                 color: colors.background,
-
-
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Icon(WorkoutCatalog.muscleIcon(group), color: colors.accent, size: 34),
+                              child: Center(
+                                child: MuscleGroupIcon(
+                                  muscle: group,
+                                  color: colors.accent,
+                                  size: 34,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                         Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
-                        const SizedBox(height: 2),
-                        Text(group, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            MuscleIcon(size: 13, color: colors.accent),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                group.isEmpty ? 'General' : group,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,

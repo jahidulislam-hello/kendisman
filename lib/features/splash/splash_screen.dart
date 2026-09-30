@@ -45,9 +45,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final cached = ref.read(cachedProfileProvider) ??
         ref.read(profilePrefsServiceProvider).load();
     final session = auth.session;
-    final onboarded = (auth.profile?.id == session?.user.id &&
-            auth.profile?.onboarded == true) ||
-        (cached?.userId == session?.user.id && cached?.onboarded == true);
+    final profile =
+        auth.profile?.id == session?.user.id ? auth.profile : null;
+    final profileOnboarded = profile != null &&
+        (profile.onboarded ||
+            profile.goal != null ||
+            profile.heightCm != null ||
+            profile.trainingDaysPerWeek != null ||
+            profile.equipmentPreference != null);
+    final cachedOnboarded = cached?.userId == session?.user.id &&
+        (cached?.onboarded == true ||
+            cached?.goal != null ||
+            cached?.heightCm != null ||
+            cached?.frequency != null ||
+            cached?.equipment != null);
+    final onboarded = profileOnboarded || cachedOnboarded;
 
     if (!mounted) return;
     if (session != null && !auth.pendingPasswordRecovery) {
@@ -77,21 +89,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const _AppIcon(),
-                const SizedBox(height: 56),
-                Text(
-                  'Fitzella',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.sheetTitle.copyWith(
-                    fontSize: 24,
-                    color: colors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: 6),
+                // Text(
+                //   'Fitzella',
+                //   textAlign: TextAlign.center,
+                //   style: AppTypography.sheetTitle.copyWith(
+                //     fontSize: 24,
+                //     color: colors.textPrimary,
+                //     letterSpacing: -0.3,
+                //   ),
+                // ),
                 Text(
                   'Track workouts. Build strength.',
                   textAlign: TextAlign.center,
-                  style: AppTypography.secondary.copyWith(
+                  style: AppTypography.body.copyWith(
                     color: colors.textSecondary,
                     height: 1.55,
                   ),
@@ -112,24 +123,24 @@ class _AppIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     const colors = AppColors.dark;
     return Container(
-      width: 94,
-      height: 94,
-      decoration: BoxDecoration(
-        color: const Color(0xFF161A2C),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: colors.accent.withValues(alpha: 0.15),
-            blurRadius: 24,
-            spreadRadius: -4,
-          ),
-        ],
-      ),
+      width: 300,
+      height: 100,
+      // decoration: BoxDecoration(
+      //   color: const Color(0xFF161A2C),
+      //   borderRadius: BorderRadius.circular(24),
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: colors.accent.withValues(alpha: 0.15),
+      //       blurRadius: 24,
+      //       spreadRadius: -4,
+      //     ),
+      //   ],
+      // ),
       alignment: Alignment.center,
       child: Text(
-        'Fitzella',
+        'fitzella',
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 48,
           fontWeight: AppWeight.extraBold,
           color: colors.accent,
           letterSpacing: -0.4,

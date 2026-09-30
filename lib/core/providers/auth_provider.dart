@@ -34,6 +34,22 @@ abstract class AuthState with _$AuthState {
 @riverpod
 class AuthNotifier extends _$AuthNotifier {
   int _profileLoadVersion = 0;
+  String? _pendingSignupEmail;
+  String? _pendingSignupPassword;
+
+  String? get pendingSignupEmail => _pendingSignupEmail;
+  bool get hasPendingSignupCredentials =>
+      _pendingSignupEmail != null && _pendingSignupPassword != null;
+
+  void setPendingSignupCredentials(String email, String password) {
+    _pendingSignupEmail = email.trim();
+    _pendingSignupPassword = password;
+  }
+
+  void clearPendingSignupCredentials() {
+    _pendingSignupEmail = null;
+    _pendingSignupPassword = null;
+  }
 
   @override
   AuthState build() {
@@ -110,13 +126,33 @@ class AuthNotifier extends _$AuthNotifier {
       final hasProgram = await _checkHasProgram(userId);
       final weightKg = await _latestWeightKg(userId);
 
+      // If user already provided onboarding information (goal, height, frequency, equipment, etc.)
+      // but onboarded flag in the db was false, treat them as onboarded and heal the DB row.
+      final isActuallyOnboarded = profile.onboarded ||
+          profile.goal != null ||
+          profile.heightCm != null ||
+          profile.trainingDaysPerWeek != null ||
+          profile.equipmentPreference != null;
+
+      final normalizedProfile = isActuallyOnboarded && !profile.onboarded
+          ? profile.copyWith(onboarded: true)
+          : profile;
+
+      if (isActuallyOnboarded && !profile.onboarded) {
+        try {
+          ref.read(supabaseClientProvider).from('users').update({
+            'onboarded': true,
+          }).eq('id', userId).ignore();
+        } catch (_) {}
+      }
+
       if (loadVersion != _profileLoadVersion) return;
       state = state.copyWith(
-        profile: profile,
+        profile: normalizedProfile,
         hasProgram: hasProgram,
         loading: false,
       );
-      await _syncLocalProfile(profile, weightKg: weightKg);
+      await _syncLocalProfile(normalizedProfile, weightKg: weightKg);
     } catch (e) {
       if (loadVersion != _profileLoadVersion) return;
       _authDebug('_loadProfile failed', e);
@@ -126,6 +162,16 @@ class AuthNotifier extends _$AuthNotifier {
         ref.read(cachedProfileProvider.notifier).state = cached;
       }
       state = state.copyWith(loading: false);
+    }
+  }
+
+  /// Reload the profile for the current active Supabase session
+  Future<void> reloadProfile() async {
+    final session =
+        state.session ?? ref.read(supabaseClientProvider).auth.currentSession;
+    if (session != null) {
+      state = state.copyWith(session: session, loading: true);
+      await _loadProfile(session.user.id);
     }
   }
 
@@ -198,22 +244,50 @@ class AuthNotifier extends _$AuthNotifier {
     final weightLb = draft.weightKg * 2.2046226218;
 
     try {
-      final completed = await ref.read(supabaseClientProvider).rpc(
-        'complete_onboarding',
-        params: {
-          'p_username': username,
-          'p_sex': sex?.value,
-          'p_date_of_birth': dob,
-          'p_height_cm': heightCm,
-          'p_unit_preference': unit.value,
-          'p_goal': goal?.value,
-          'p_experience_level': experience?.name,
-          'p_training_days_per_week': draft.frequency,
-          'p_equipment_preference': draft.equipment,
-          'p_weight_lb': double.parse(weightLb.toStringAsFixed(2)),
-        },
-      );
-      if (completed != true) {
+      bool completed = false;
+      try {
+        final res = await ref.read(supabaseClientProvider).rpc(
+          'complete_onboarding',
+          params: {
+            'p_username': username,
+            'p_sex': sex?.value,
+            'p_date_of_birth': dob,
+            'p_height_cm': heightCm,
+            'p_unit_preference': unit.value,
+            'p_goal': goal?.value,
+            'p_experience_level': experience?.name,
+            'p_training_days_per_week': draft.frequency,
+            'p_equipment_preference': draft.equipment,
+            'p_weight_lb': double.parse(weightLb.toStringAsFixed(2)),
+          },
+        );
+        completed = res == true;
+      } catch (rpcErr) {
+        _authDebug('complete_onboarding RPC error, using direct table update fallback', rpcErr);
+        await ref.read(supabaseClientProvider).from('users').update({
+          'username': username,
+          if (sex != null) 'sex': sex.value,
+          'date_of_birth': dob,
+          'height_cm': heightCm,
+          'unit_preference': unit.value,
+          if (goal != null) 'goal': goal.value,
+          if (experience != null) 'experience_level': experience.name,
+          if (draft.frequency != null) 'training_days_per_week': draft.frequency,
+          if (draft.equipment != null) 'equipment_preference': draft.equipment,
+          'onboarded': true,
+        }).eq('id', userId);
+
+        try {
+          await ref.read(supabaseClientProvider).from('body_measurements').insert({
+            'user_id': userId,
+            'measured_on': DateTime.now().toIso8601String().split('T').first,
+            'weight_lb': double.parse(weightLb.toStringAsFixed(2)),
+          });
+        } catch (_) {}
+        completed = true;
+      }
+
+      if (!completed) {
         throw StateError('Supabase did not confirm onboarding completion');
       }
 
@@ -325,6 +399,8 @@ class AuthNotifier extends _$AuthNotifier {
   Future<AuthResult> signUp(String email, String password,
       {String? referralCode}) async {
     try {
+      _pendingSignupEmail = email.trim();
+      _pendingSignupPassword = password;
       _authDebug('signUp → $email redirect=${SupabaseConfig.authCallbackUrl}');
       final response = await ref.read(supabaseClientProvider).auth.signUp(
             email: email,
@@ -334,6 +410,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       if (response.session != null) {
         _authDebug('signUp session ready user=${response.session!.user.id}');
+        clearPendingSignupCredentials();
         await _loadProfile(response.session!.user.id);
         return AuthResult.success(needsVerification: false);
       }
@@ -341,6 +418,7 @@ class AuthNotifier extends _$AuthNotifier {
       // Check if user already exists (enumeration protection)
       if (response.user?.identities?.isEmpty ?? false) {
         _authDebug('signUp email already registered');
+        clearPendingSignupCredentials();
         return AuthResult.error(
             'This email is already registered. Please sign in.');
       }
@@ -358,6 +436,7 @@ class AuthNotifier extends _$AuthNotifier {
       }
       if (msg.contains('already registered') ||
           msg.contains('already been registered')) {
+        clearPendingSignupCredentials();
         return AuthResult.error(
             'This email is already registered. Please sign in.');
       }
@@ -368,20 +447,78 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
+  /// Check if the user has confirmed their email (e.g. clicked link in Gmail)
+  /// and automatically complete sign-in.
+  Future<AuthResult> checkPendingSignupConfirmation({String? email}) async {
+    final client = ref.read(supabaseClientProvider);
+    final currentSession = state.session ?? client.auth.currentSession;
+    if (currentSession != null) {
+      _authDebug('checkPendingSignupConfirmation: session already active');
+      clearPendingSignupCredentials();
+      await reloadProfile();
+      return const AuthResult.success();
+    }
+
+    final targetEmail = email?.trim() ?? _pendingSignupEmail;
+    if (targetEmail == null || _pendingSignupPassword == null) {
+      return const AuthResult.error('Please enter your password to sign in.');
+    }
+
+    _authDebug('checkPendingSignupConfirmation: checking signIn for $targetEmail');
+    try {
+      final res = await signIn(targetEmail, _pendingSignupPassword!);
+      return res.when(
+        success: (_) {
+          _authDebug('checkPendingSignupConfirmation: confirmed and signed in!');
+          clearPendingSignupCredentials();
+          return const AuthResult.success();
+        },
+        error: (message) {
+          _authDebug('checkPendingSignupConfirmation: signIn returned $message');
+          return AuthResult.error(message);
+        },
+      );
+    } catch (e) {
+      _authDebug('checkPendingSignupConfirmation error', e);
+      return AuthResult.error(e.toString());
+    }
+  }
+
   Future<AuthResult> verifySignupOtp(String email, String token) async {
     try {
+      final cleanToken = token.trim();
+      _authDebug('verifySignupOtp → $email code=$cleanToken');
       final response = await ref
           .read(supabaseClientProvider)
           .auth
-          .verifyOTP(email: email, token: token, type: OtpType.signup);
+          .verifyOTP(email: email, token: cleanToken, type: OtpType.signup);
 
       if (response.session != null) {
+        _authDebug('verifySignupOtp session ready');
         await _loadProfile(response.session!.user.id);
         return AuthResult.success();
       }
-      return AuthResult.error('Failed to verify code');
+      if (response.user != null) {
+        _authDebug('verifySignupOtp user confirmed');
+        final session = ref.read(supabaseClientProvider).auth.currentSession;
+        if (session != null) {
+          await _loadProfile(session.user.id);
+        }
+        return AuthResult.success();
+      }
+      return AuthResult.error('Failed to verify code. Please try again.');
+    } on AuthException catch (e) {
+      _authDebug('verifySignupOtp AuthException', e.message);
+      final msg = e.message.toLowerCase();
+      if (msg.contains('expired') || msg.contains('invalid')) {
+        return AuthResult.error(
+          'Invalid or expired code. Please enter the latest 6-digit code or tap Resend.',
+        );
+      }
+      return AuthResult.error(e.message);
     } catch (e) {
-      return AuthResult.error('Failed to verify the code');
+      _authDebug('verifySignupOtp failed', e);
+      return AuthResult.error('Failed to verify code. Check your connection.');
     }
   }
 
@@ -473,17 +610,28 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<AuthResult> verifyPasswordResetOtp(String email, String token) async {
     try {
+      final cleanToken = token.trim();
       state = state.copyWith(pendingPasswordRecovery: true);
       final response = await ref
           .read(supabaseClientProvider)
           .auth
-          .verifyOTP(email: email, token: token, type: OtpType.recovery);
+          .verifyOTP(email: email, token: cleanToken, type: OtpType.recovery);
 
       if (response.session != null) {
         return AuthResult.success();
       }
       state = state.copyWith(pendingPasswordRecovery: false);
       return AuthResult.error('Failed to verify the code');
+    } on AuthException catch (e) {
+      state = state.copyWith(pendingPasswordRecovery: false);
+      _authDebug('verifyPasswordResetOtp AuthException', e.message);
+      final msg = e.message.toLowerCase();
+      if (msg.contains('expired') || msg.contains('invalid')) {
+        return AuthResult.error(
+          'Invalid or expired code. Please enter the latest 6-digit code or tap Resend.',
+        );
+      }
+      return AuthResult.error(e.message);
     } catch (e) {
       state = state.copyWith(pendingPasswordRecovery: false);
       return AuthResult.error('Failed to verify the code');
