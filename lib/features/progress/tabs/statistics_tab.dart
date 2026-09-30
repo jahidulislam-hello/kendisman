@@ -118,7 +118,7 @@ class _StatisticsTabState extends ConsumerState<StatisticsTab> {
                   }),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 36),
               SizedBox(
                 height: 220,
                 child: RadarChart(

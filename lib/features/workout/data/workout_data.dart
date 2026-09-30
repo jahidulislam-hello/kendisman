@@ -583,18 +583,31 @@ class WorkoutCatalog {
       case 'chest':
         return Icons.accessibility_new;
       case 'shoulders':
+      case 'delts':
         return Icons.sports_gymnastics;
       case 'back':
-        return Icons.airline_seat_recline_extra;
+      case 'lats':
+      case 'traps':
+        return Icons.shield_outlined;
       case 'arms':
+      case 'biceps':
+      case 'triceps':
+      case 'forearms':
         return Icons.fitness_center;
       case 'legs':
+      case 'quads':
+      case 'hamstrings':
+      case 'calves':
+      case 'glutes':
         return Icons.directions_walk;
       case 'core':
       case 'waist':
+      case 'abs':
         return Icons.self_improvement;
+      case 'cardio':
+        return Icons.directions_run;
       default:
-        return Icons.grid_view_rounded;
+        return Icons.fitness_center;
     }
   }
 }

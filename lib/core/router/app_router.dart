@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:fitzella/core/providers/auth_provider.dart';
 import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
+import 'package:fitzella/core/services/supabase_service.dart';
 import 'package:fitzella/features/auth/auth_screens.dart';
 import 'package:fitzella/features/onboarding/onboarding_screens.dart';
 import 'package:fitzella/features/splash/splash_screen.dart';
@@ -18,10 +19,16 @@ import 'package:fitzella/features/workout/workout_screens.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
 
-/// Notifies [GoRouter] when Supabase auth state changes (e.g. email confirm deep link).
+/// Notifies [GoRouter] when Supabase auth state changes or when auth state updates.
 class _AuthRefresh extends ChangeNotifier {
-  _AuthRefresh() {
+  _AuthRefresh(Ref ref) {
     _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      notifyListeners();
+    });
+    ref.listen(authNotifierProvider, (_, __) {
+      notifyListeners();
+    });
+    ref.listen(cachedProfileProvider, (_, __) {
       notifyListeners();
     });
   }
@@ -43,9 +50,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 class AppRouter {
   final Ref ref;
   late final GoRouter router;
-  final _authRefresh = _AuthRefresh();
+  late final _AuthRefresh _authRefresh;
 
   AppRouter({required this.ref}) {
+    _authRefresh = _AuthRefresh(ref);
     ref.onDispose(_authRefresh.dispose);
     router = GoRouter(
       initialLocation: '/splash',
@@ -58,6 +66,17 @@ class AppRouter {
 
   String? _redirect(BuildContext context, GoRouterState state) {
     final loc = state.matchedLocation;
+    final uri = state.uri;
+
+    // Route Supabase auth deep link with host 'login-callback' to the callback screen.
+    final isCallbackHost = uri.host == 'login-callback';
+    final isCallbackPath = loc.startsWith('/login-callback');
+    if (isCallbackHost && !isCallbackPath) {
+      final query = uri.hasQuery ? '?${uri.query}' : '';
+      final fragment = uri.hasFragment ? '#${uri.fragment}' : '';
+      return '/login-callback$query$fragment';
+    }
+
     if (loc == '/auth') return '/auth/login';
     if (loc == '/onboarding') return '/onboarding/welcome';
     if (loc == '/' || loc.isEmpty) return '/splash';
@@ -66,10 +85,12 @@ class AppRouter {
     if (loc == '/splash') return null;
 
     final auth = ref.read(authNotifierProvider);
-    final session = auth.session;
+    final session =
+        auth.session ?? ref.read(supabaseClientProvider).auth.currentSession;
     final pendingRecovery = auth.pendingPasswordRecovery;
     final isAuthRoute = loc.startsWith('/auth');
     final isOnboarding = loc.startsWith('/onboarding');
+    final isCallback = loc.startsWith('/login-callback');
     final isAppShell = loc.startsWith('/home') ||
         loc.startsWith('/workout') ||
         loc.startsWith('/progress') ||
@@ -79,7 +100,7 @@ class AppRouter {
         loc.startsWith('/compare-exercises') ||
         loc.startsWith('/share-workout');
 
-    // Signed out → keep auth/welcome public; block app + onboarding.
+    // Signed out → keep auth/welcome/login-callback public; block app + onboarding.
     if (session == null) {
       if (isAppShell || isOnboarding) return '/welcome';
       return null;
@@ -93,20 +114,44 @@ class AppRouter {
       return null;
     }
 
-    final cached = ref.read(cachedProfileProvider);
-    final cachedOnboarded =
-        cached?.userId == session.user.id && cached?.onboarded == true;
-    final onboarded = (auth.profile?.id == session.user.id &&
-            auth.profile?.onboarded == true) ||
-        cachedOnboarded;
+    // If session exists but auth profile is still loading, wait on auth/welcome screens.
+    // Never prematurely route an existing user into onboarding while loading profile.
+    if (auth.loading && (isAuthRoute || loc == '/welcome' || isCallback)) {
+      return null;
+    }
 
-    // After email confirmation deep link / successful login, leave auth/welcome.
-    if (isAuthRoute || loc == '/welcome') {
+    final cached = ref.read(cachedProfileProvider) ??
+        ref.read(profilePrefsServiceProvider).load();
+    final cachedOnboarded = cached?.userId == session.user.id &&
+        (cached?.onboarded == true ||
+            cached?.goal != null ||
+            cached?.heightCm != null ||
+            cached?.frequency != null ||
+            cached?.equipment != null);
+
+    final profile = auth.profile?.id == session.user.id ? auth.profile : null;
+    final profileOnboarded = profile != null &&
+        (profile.onboarded ||
+            profile.goal != null ||
+            profile.heightCm != null ||
+            profile.trainingDaysPerWeek != null ||
+            profile.equipmentPreference != null);
+
+    final onboarded = profileOnboarded || cachedOnboarded;
+
+    // If user has already completed onboarding, prevent them from ever seeing /onboarding!
+    if (onboarded && isOnboarding) {
+      return '/home';
+    }
+
+    // After email confirmation deep link / successful login, leave auth/welcome/callback.
+    if (isAuthRoute || loc == '/welcome' || isCallback) {
       return onboarded ? '/home' : '/onboarding/welcome';
     }
 
     // Guard main tabs until profile setup is finished.
     if (!onboarded && isAppShell) {
+      if (auth.loading) return null;
       return '/onboarding/welcome';
     }
 
@@ -118,6 +163,11 @@ class AppRouter {
           path: '/splash',
           name: 'splash',
           builder: (context, state) => const SplashScreen(),
+        ),
+        GoRoute(
+          path: '/login-callback',
+          name: 'login-callback',
+          builder: (context, state) => AuthCallbackScreen(uri: state.uri),
         ),
         GoRoute(
           path: '/welcome',
