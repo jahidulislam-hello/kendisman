@@ -8,7 +8,7 @@ class WelcomeScreen extends StatelessWidget {
 
   static const _asset = 'assets/images/welcome_01.png';
 
-  void _goSignIn(BuildContext context) => context.go('/auth/login');
+  void _goSignIn(BuildContext context) => context.go('/auth/continue');
 
   @override
   Widget build(BuildContext context) {

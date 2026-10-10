@@ -114,9 +114,25 @@ class FitnessDataService {
   }
 
   Future<List<Map<String, dynamic>>> fetchExercises() async {
+    const withGifs =
+        'id,name,muscle_group,equipment_type,is_custom,gif_url,image_url,gif_url_180,gif_url_360,gif_url_720,gif_url_1080';
+    const withoutResolutionColumns =
+        'id,name,muscle_group,equipment_type,is_custom,gif_url,image_url';
+    try {
+      return await _selectExercises(withGifs);
+    } on PostgrestException catch (error) {
+      final missingResolutionColumns = error.code == '42703' ||
+          error.code == 'PGRST204' ||
+          error.message.contains('gif_url_180');
+      if (!missingResolutionColumns) rethrow;
+      return _selectExercises(withoutResolutionColumns);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _selectExercises(String columns) async {
     final rows = await _client
         .from('exercises')
-        .select('id,name,muscle_group,equipment_type,is_custom')
+        .select(columns)
         .or('is_custom.eq.false,created_by_user_id.eq.$_userId')
         .order('name');
     return List<Map<String, dynamic>>.from(rows);
@@ -483,11 +499,23 @@ class FitnessDataService {
   }
 
   Future<Map<String, dynamic>> fetchExercise(String id) async {
-    return await _client
-        .from('exercises')
-        .select('id,name,muscle_group,equipment_type')
-        .eq('id', id)
-        .single();
+    const withGifs =
+        'id,name,muscle_group,equipment_type,gif_url,image_url,gif_url_180,gif_url_360,gif_url_720,gif_url_1080';
+    const withoutResolutionColumns =
+        'id,name,muscle_group,equipment_type,gif_url,image_url';
+    try {
+      return await _client.from('exercises').select(withGifs).eq('id', id).single();
+    } on PostgrestException catch (error) {
+      final missingResolutionColumns = error.code == '42703' ||
+          error.code == 'PGRST204' ||
+          error.message.contains('gif_url_180');
+      if (!missingResolutionColumns) rethrow;
+      return await _client
+          .from('exercises')
+          .select(withoutResolutionColumns)
+          .eq('id', id)
+          .single();
+    }
   }
 
   Future<void> finishSession(String id) async {
@@ -730,6 +758,9 @@ class FitnessDataService {
         volumeLastWeek += volume;
       }
     }
+    // Logged set weight is stored in pounds. Home volume is reported in kilograms.
+    volumeThisWeek = _poundsToKilograms(volumeThisWeek);
+    volumeLastWeek = _poundsToKilograms(volumeLastWeek);
     final programs = await _client
         .from('programs')
         .select('id,name,routines(id,name,day_index,routine_exercises(id))')
@@ -773,6 +804,10 @@ class FitnessDataService {
       'streak_weeks': streakWeeks,
     };
   }
+
+  static const double _poundsPerKilogram = 2.2046226218;
+
+  double _poundsToKilograms(double pounds) => pounds / _poundsPerKilogram;
 
   /// Consecutive Monday-based weeks with at least one completed workout.
   /// The current week only extends the streak; an empty current week does

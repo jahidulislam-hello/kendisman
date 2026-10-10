@@ -8,6 +8,7 @@ import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/features/home/achievement_progress.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -54,7 +55,6 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 18),
                   _AchievementsCard(
                     colors: colors,
-                    workoutCount: data['workouts_this_week'] as int? ?? 0,
                     onTap: () => context.push('/home/achievements'),
                   ),
                 ],
@@ -201,16 +201,16 @@ class _UpNextCard extends StatelessWidget {
               ),
               Column(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colors.accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: colors.accent.withValues(alpha: 0.45)),
-                    ),
-                    child: Icon(Icons.tag, color: colors.accent, size: 18),
-                  ),
+                  // Container(
+                  //   width: 36,
+                  //   height: 36,
+                  //   decoration: BoxDecoration(
+                  //     color: colors.accent.withValues(alpha: 0.12),
+                  //     borderRadius: BorderRadius.circular(10),
+                  //     border: Border.all(color: colors.accent.withValues(alpha: 0.45)),
+                  //   ),
+                  //   child: Icon(Icons.tag, color: colors.accent, size: 18),
+                  // ),
                   const SizedBox(height: 8),
                   ...[28.0, 18.0, 22.0].map(
                     (w) => Container(
@@ -306,7 +306,7 @@ class _WeeklySnapshot extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('${_formatNumber(summary['volume_this_week'] as num? ?? 0)} lb', style: TextStyle(color: colors.textPrimary, fontSize: 30, fontWeight: FontWeight.w800)),
+                    Text('${_formatNumber(summary['volume_this_week'] as num? ?? 0)} kg', style: TextStyle(color: colors.textPrimary, fontSize: 30, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -556,70 +556,141 @@ class _Day {
   const _Day(this.label, this.date, this.state);
 }
 
-class _AchievementsCard extends StatelessWidget {
+class _AchievementsCard extends ConsumerWidget {
   final AppColors colors;
-  final int workoutCount;
   final VoidCallback onTap;
-  const _AchievementsCard({required this.colors, required this.workoutCount, required this.onTap});
+  const _AchievementsCard({required this.colors, required this.onTap});
+
+  static const _chipColors = [
+    Color(0xFF60A5FA),
+    Color(0xFF4ADE80),
+    Color(0xFFFB923C),
+    Color(0xFFC084FC),
+  ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(workoutHistoryProvider);
+    final progress = history.maybeWhen(
+      data: AchievementProgress.fromSessions,
+      orElse: () => AchievementProgress.empty,
+    );
+    final badges = progress.badges.where((badge) => badge.earned).toList();
+    final summary = history.maybeWhen(
+      data: (_) => '${progress.earnedCount} badges earned · Level ${progress.level}',
+      orElse: () => 'Badges · Level',
+    );
+
     return Material(
       color: colors.surface,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFD4A017).withValues(alpha: 0.65)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 70,
-                height: 36,
-                child: Stack(
-                  children: [
-                    _badge(0, const Color(0xFFFBBF24), Icons.emoji_events),
-                    _badge(18, colors.accent, Icons.local_fire_department),
-                    _badge(36, colors.success, Icons.star),
-                  ],
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Text(
+                      'Weekly achievements',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 6,
+                    child: Text(
+                      summary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('This Week Achievements', style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text('$workoutCount completed workouts this week', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                  ],
+              if (badges.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < badges.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        _AchievementChip(
+                          badge: badges[i],
+                          color: _chipColors[i % _chipColors.length],
+                          muted: colors.textMuted,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right, color: colors.textMuted),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _badge(double left, Color color, IconData icon) {
-    return Positioned(
-      left: left,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: colors.surface,
-          shape: BoxShape.circle,
-          border: Border.all(color: color, width: 1.5),
-        ),
-        child: Icon(icon, color: color, size: 16),
+class _AchievementChip extends StatelessWidget {
+  final AchievementBadge badge;
+  final Color color;
+  final Color muted;
+
+  const _AchievementChip({
+    required this.badge,
+    required this.color,
+    required this.muted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = badge.earned;
+    final tint = earned ? color : muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: earned ? 0.16 : 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: tint.withValues(alpha: earned ? 0.45 : 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(badge.icon, size: 14, color: tint),
+          const SizedBox(width: 6),
+          Text(
+            badge.title,
+            style: TextStyle(
+              color: tint,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

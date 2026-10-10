@@ -24,17 +24,7 @@ class OnboardingWelcomeScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Icon(Icons.fitness_center, color: colors.textPrimary, size: 18),
-                  ),
-                  const SizedBox(width: 10),
+
                   Text(
                     'Fitzella',
                     style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800),
@@ -43,7 +33,7 @@ class OnboardingWelcomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 40),
               Text(
-                'Please accept our health\nterms and policy',
+                'Please accept our health terms and policy',
                 style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800, height: 1.2),
               ),
               const SizedBox(height: 24),

@@ -192,6 +192,7 @@ class OnboardingFrequencyScreen extends ConsumerWidget {
       (3, '3 days per week', 'Balanced — ideal for most goals'),
       (4, '4 days per week', 'Focused — solid weekly volume'),
       (5, '5 days per week', 'Dedicated — serious commitment'),
+      (6, '6 days per week', 'Elite — high intensity schedule'),
     ];
 
     return OnboardingStepScaffold(
@@ -405,6 +406,16 @@ class OnboardingPaywallScreen extends ConsumerWidget {
                 selected: plan == 'monthly',
                 onTap: () =>
                     ref.read(onboardingProvider.notifier).setPlan('monthly'),
+              ),
+              _PlanCard(
+                colors: colors,
+                title: 'Lifetime',
+                subtitle: 'Pay once, Access forever',
+                price: 'TBA',
+                period: 'one-time',
+                selected: plan == 'lifetime',
+                onTap: () =>
+                    ref.read(onboardingProvider.notifier).setPlan('lifetime'),
               ),
               const SizedBox(height: 24),
               const _PaywallBullet('14-day free trial, no charge today'),
@@ -622,7 +633,7 @@ class _OnboardingReadyScreenState extends ConsumerState<OnboardingReadyScreen> {
                     color: colors.textSecondary, fontSize: 15, height: 1.45),
               ),
               const SizedBox(height: 28),
-              _ReadyRow(colors: colors, text: 'Program tailored to your goals'),
+              _ReadyRow(colors: colors, text: 'Set your goals'),
               const SizedBox(height: 10),
               _ReadyRow(colors: colors, text: 'Progress tracking ready to go'),
               const SizedBox(height: 10),

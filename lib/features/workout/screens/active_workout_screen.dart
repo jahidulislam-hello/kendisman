@@ -21,23 +21,54 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   Timer? _timer;
   Timer? _restTimer;
   int _elapsed = 0;
+  bool _clocksStopped = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _elapsed++);
-    });
-    _restTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      ref.read(activeWorkoutProvider.notifier).tickRest();
-    });
+    _timer = Timer.periodic(const Duration(seconds: 1), _onElapsed);
+    _restTimer = Timer.periodic(const Duration(seconds: 1), _onRest);
+  }
+
+  void _onElapsed(Timer timer) {
+    if (_clocksStopped || !mounted) {
+      timer.cancel();
+      return;
+    }
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isActive) {
+      _stopClocks();
+      return;
+    }
+    setState(() => _elapsed++);
+  }
+
+  void _onRest(Timer timer) {
+    if (_clocksStopped || !mounted) {
+      timer.cancel();
+      return;
+    }
+    ref.read(activeWorkoutProvider.notifier).tickRest();
+  }
+
+  void _stopClocks() {
+    _clocksStopped = true;
+    _timer?.cancel();
+    _restTimer?.cancel();
+    _timer = null;
+    _restTimer = null;
+  }
+
+  Future<void> _openSummary() async {
+    _stopClocks();
+    ref.invalidate(workoutHistoryProvider);
+    if (!mounted) return;
+    context.pushReplacement('/workout/summary');
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _restTimer?.cancel();
+    _stopClocks();
     super.dispose();
   }
 
@@ -63,20 +94,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      _stopClocks();
+                      Navigator.pop(context);
+                    },
                     icon: Icon(Icons.chevron_left, color: colors.textPrimary, size: 28),
                   ),
-                  if (state.saving) ...[
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(),
-                  ],
-                  if (state.backendError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      state.backendError!,
-                      style: TextStyle(color: colors.danger, fontSize: 12),
-                    ),
-                  ],
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -95,21 +118,18 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                           if (action == FinishAction.complete) {
                             await notifier.completeAllUnfinished();
                             if (context.mounted && notifier.currentState.finished) {
-                              ref.invalidate(workoutHistoryProvider);
-                              context.pushReplacement('/workout/summary');
+                              await _openSummary();
                             }
                           } else if (action == FinishAction.discard) {
                             await notifier.discardSetsAndFinish();
                             if (context.mounted && notifier.currentState.finished) {
-                              ref.invalidate(workoutHistoryProvider);
-                              context.pushReplacement('/workout/summary');
+                              await _openSummary();
                             }
                           }
                         } else {
                           await notifier.completeAllUnfinished();
                           if (context.mounted && notifier.currentState.finished) {
-                            ref.invalidate(workoutHistoryProvider);
-                            context.pushReplacement('/workout/summary');
+                            await _openSummary();
                           }
                         }
                       },
@@ -138,6 +158,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 children: [
+                  if (state.saving) ...[
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 8),
+                  ],
+                  if (state.backendError != null) ...[
+                    Text(
+                      state.backendError!,
+                      style: TextStyle(color: colors.danger, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Text(state.title, style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
                   Text(
@@ -332,6 +363,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                         );
                         return;
                       }
+                      _stopClocks();
                       Navigator.pop(context);
                     },
                     child: Text('Discard workout', style: TextStyle(color: colors.danger, fontWeight: FontWeight.w700)),

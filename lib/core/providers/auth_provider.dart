@@ -548,6 +548,29 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
+  /// Opens Google or Apple in the browser. The session arrives on the
+  /// `io.fitzella.app://login-callback/` deep link.
+  Future<AuthResult> signInWithProvider(OAuthProvider provider) async {
+    try {
+      _authDebug('signInWithOAuth → $provider');
+      final launched =
+          await ref.read(supabaseClientProvider).auth.signInWithOAuth(
+                provider,
+                redirectTo: SupabaseConfig.authCallbackUrl,
+              );
+      if (!launched) {
+        return AuthResult.error('Could not open the sign-in page.');
+      }
+      return AuthResult.success();
+    } on AuthException catch (e) {
+      _authDebug('signInWithOAuth AuthException', e.message);
+      return AuthResult.error(e.message);
+    } catch (e) {
+      _authDebug('signInWithOAuth failed', e);
+      return AuthResult.error('Could not start sign-in. Please try again.');
+    }
+  }
+
   Future<AuthResult> signIn(String email, String password) async {
     try {
       _authDebug('signIn → $email');

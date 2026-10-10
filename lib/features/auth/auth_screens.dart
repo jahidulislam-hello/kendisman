@@ -203,11 +203,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _socialComingSoon() {
-    _showAuthSnack(context,
-        message: 'Apple & Google sign-in coming soon to Fitzella.');
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(appColorsProvider);
@@ -276,46 +271,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               title: 'Sign In',
               loading: _loading,
               onPressed: _handleLogin,
-            ),
-            const VGap(AppSpacing.xl),
-            Row(
-              children: [
-                Expanded(child: Divider(color: colors.border)),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text('or continue with',
-                      style: AppTypography.small
-                          .copyWith(color: colors.textMuted)),
-                ),
-                Expanded(child: Divider(color: colors.border)),
-              ],
-            ),
-            const VGap(AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: SecondaryButton(
-                    title: 'Apple',
-                    leading: const Icon(Icons.apple, size: 20),
-                    onPressed: _socialComingSoon,
-                  ),
-                ),
-                const HGap(AppSpacing.md),
-                Expanded(
-                  child: SecondaryButton(
-                    title: 'Google',
-                    leading: Image.network(
-                      'https://www.google.com/favicon.ico',
-                      width: 20,
-                      height: 20,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.g_mobiledata, size: 22),
-                    ),
-                    onPressed: _socialComingSoon,
-                  ),
-                ),
-              ],
             ),
             const VGap(AppSpacing.xl),
             Row(
@@ -402,11 +357,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       error: (message) =>
           _showAuthSnack(context, message: message, isError: true),
     );
-  }
-
-  void _socialComingSoon() {
-    _showAuthSnack(context,
-        message: 'Apple & Google sign-in coming soon to Fitzella.');
   }
 
   @override
@@ -512,46 +462,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               title: 'Create Account',
               loading: _loading,
               onPressed: _handleSignup,
-            ),
-            const VGap(AppSpacing.xl),
-            Row(
-              children: [
-                Expanded(child: Divider(color: colors.border)),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text('or continue with',
-                      style: AppTypography.small
-                          .copyWith(color: colors.textMuted)),
-                ),
-                Expanded(child: Divider(color: colors.border)),
-              ],
-            ),
-            const VGap(AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: SecondaryButton(
-                    title: 'Apple',
-                    leading: const Icon(Icons.apple, size: 20),
-                    onPressed: _socialComingSoon,
-                  ),
-                ),
-                const HGap(AppSpacing.md),
-                Expanded(
-                  child: SecondaryButton(
-                    title: 'Google',
-                    leading: Image.network(
-                      'https://www.google.com/favicon.ico',
-                      width: 20,
-                      height: 20,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.g_mobiledata, size: 22),
-                    ),
-                    onPressed: _socialComingSoon,
-                  ),
-                ),
-              ],
             ),
             const VGap(AppSpacing.xl),
             Row(
@@ -1368,7 +1278,7 @@ class AuthCallbackScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
-  String _status = 'Confirming your email...';
+  String _status = 'Signing you in...';
   bool _isError = false;
 
   @override
@@ -1404,7 +1314,7 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
       });
       _showAuthSnack(context, message: errorDescription, isError: true);
       await Future.delayed(const Duration(seconds: 2));
-      if (mounted) context.go('/auth/login');
+      if (mounted) context.go('/auth/continue');
       return;
     }
 
@@ -1439,8 +1349,7 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         final onboarded =
             _checkIsOnboarded(updatedAuth, cached, session.user.id);
 
-        _showAuthSnack(context,
-            message: 'Email confirmed! Welcome to Fitzella.');
+        _showAuthSnack(context, message: 'Welcome back to Fitzella!');
         context.go(onboarded ? '/home' : '/onboarding/welcome');
         return;
       }

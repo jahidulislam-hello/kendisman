@@ -9,6 +9,7 @@ import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/core/services/supabase_service.dart';
 import 'package:fitzella/features/auth/auth_screens.dart';
+import 'package:fitzella/features/auth/login_choices_screen.dart';
 import 'package:fitzella/features/onboarding/onboarding_screens.dart';
 import 'package:fitzella/features/splash/splash_screen.dart';
 import 'package:fitzella/features/splash/welcome_screen.dart';
@@ -77,7 +78,7 @@ class AppRouter {
       return '/login-callback$query$fragment';
     }
 
-    if (loc == '/auth') return '/auth/login';
+    if (loc == '/auth') return '/auth/continue';
     if (loc == '/onboarding') return '/onboarding/welcome';
     if (loc == '/' || loc.isEmpty) return '/splash';
 
@@ -178,10 +179,15 @@ class AppRouter {
           path: '/auth',
           name: 'auth',
           redirect: (context, state) {
-            if (state.uri.path == '/auth') return '/auth/login';
+            if (state.uri.path == '/auth') return '/auth/continue';
             return null;
           },
           routes: [
+            GoRoute(
+              path: 'continue',
+              name: 'auth-continue',
+              builder: (context, state) => const LoginChoicesScreen(),
+            ),
             GoRoute(
               path: 'login',
               name: 'login',

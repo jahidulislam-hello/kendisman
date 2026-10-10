@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/core/theme/app_theme.dart';
 import 'package:fitzella/core/theme/theme_provider.dart';
+import 'package:fitzella/features/home/achievement_progress.dart';
 
 class AchievementScreen extends ConsumerWidget {
   const AchievementScreen({super.key});
@@ -37,75 +38,17 @@ class AchievementScreen extends ConsumerWidget {
       );
     }
 
-    final sessions = [...history.value ?? const <Map<String, dynamic>>[]]
-      ..sort((a, b) => DateTime.parse(a['started_at'] as String)
-          .compareTo(DateTime.parse(b['started_at'] as String)));
-    final bestByExercise = <String, double>{};
-    final exerciseIds = <String>{};
-    final workoutDays = <DateTime>{};
-    var totalSets = 0;
-    var personalRecords = 0;
-    var totalVolume = 0.0;
-    for (final session in sessions) {
-      final started = DateTime.parse(session['started_at'] as String).toLocal();
-      workoutDays.add(DateTime(started.year, started.month, started.day));
-      final sessionBests = <String, double>{};
-      final sets = (session['logged_sets'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
-      totalSets += sets.length;
-      for (final set in sets) {
-        final exerciseId = set['exercise_id'] as String;
-        exerciseIds.add(exerciseId);
-        final weight = (set['weight'] as num?)?.toDouble() ?? 0;
-        final reps = (set['reps'] as num?)?.toInt() ?? 0;
-        totalVolume += weight * reps;
-        final estimate = reps > 0 ? weight * (1 + reps / 30) : weight;
-        if (estimate > (sessionBests[exerciseId] ?? 0)) {
-          sessionBests[exerciseId] = estimate;
-        }
-      }
-      for (final entry in sessionBests.entries) {
-        if (entry.value > (bestByExercise[entry.key] ?? 0)) {
-          personalRecords++;
-          bestByExercise[entry.key] = entry.value;
-        }
-      }
-    }
-
-    final today = DateTime.now();
-    var streak = 0;
-    var streakDay = DateTime(today.year, today.month, today.day);
-    if (!workoutDays.contains(streakDay)) {
-      streakDay = streakDay.subtract(const Duration(days: 1));
-    }
-    while (workoutDays.contains(streakDay)) {
-      streak++;
-      streakDay = streakDay.subtract(const Duration(days: 1));
-    }
-    final xp = sessions.length * 100 + totalSets * 10 + personalRecords * 25;
-    final level = xp ~/ 1000 + 1;
-    final xpInLevel = xp % 1000;
-    final badges = [
-      _Badge('First Rep', 'Log your first workout', Icons.fitness_center,
-          sessions.isNotEmpty, progress: '${sessions.length}/1'),
-      _Badge('Getting Started', 'Log 10 workouts', Icons.fitness_center,
-          sessions.length >= 10, progress: '${sessions.length}/10'),
-      _Badge('First PR', 'Set a personal record', Icons.emoji_events,
-          personalRecords >= 1, progress: '$personalRecords/1'),
-      _Badge('Record Breaker', 'Set 10 personal records', Icons.emoji_events,
-          personalRecords >= 10, progress: '$personalRecords/10'),
-      _Badge('Century Sets', 'Log 100 sets', Icons.layers, totalSets >= 100,
-          progress: '$totalSets/100'),
-      _Badge('Set Machine', 'Log 500 sets', Icons.layers, totalSets >= 500,
-          progress: '$totalSets/500'),
-      _Badge('Explorer', 'Train 5 different exercises',
-          Icons.grid_view_rounded, exerciseIds.length >= 5,
-          progress: '${exerciseIds.length}/5'),
-      _Badge('Well-Rounded', 'Train 10 different exercises',
-          Icons.grid_view_rounded, exerciseIds.length >= 10,
-          progress: '${exerciseIds.length}/10'),
-    ];
-    final earnedBadges = badges.where((badge) => badge.earned).length;
+    final progress =
+        AchievementProgress.fromSessions(history.value ?? const []);
+    final level = progress.level;
+    final xp = progress.xp;
+    final xpInLevel = progress.xpInLevel;
+    final streak = progress.streak;
+    final personalRecords = progress.personalRecords;
+    final totalVolume = progress.totalVolume;
+    final sessionsLength = progress.sessionCount;
+    final badges = progress.badges;
+    final earnedBadges = progress.earnedCount;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -192,7 +135,7 @@ class AchievementScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      Expanded(child: _StatCard(colors: colors, value: '${sessions.length}', label: 'Workouts')),
+                      Expanded(child: _StatCard(colors: colors, value: '$sessionsLength', label: 'Workouts')),
                       const SizedBox(width: 10),
                       Expanded(child: _StatCard(colors: colors, value: '$streak', label: 'Day streak')),
                     ],
@@ -263,18 +206,9 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _Badge {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool earned;
-  final String? progress;
-  const _Badge(this.title, this.subtitle, this.icon, this.earned, {this.progress});
-}
-
 class _BadgeCard extends StatelessWidget {
   final AppColors colors;
-  final _Badge badge;
+  final AchievementBadge badge;
   const _BadgeCard({required this.colors, required this.badge});
 
   @override
@@ -307,7 +241,7 @@ class _BadgeCard extends StatelessWidget {
             Text(badge.subtitle, style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.25)),
             const Spacer(),
             Text(
-              badge.earned ? 'Earned' : (badge.progress ?? ''),
+              badge.earned ? 'Earned' : badge.progress,
               style: TextStyle(
                 color: badge.earned ? colors.accent : colors.textMuted,
                 fontSize: 13,
