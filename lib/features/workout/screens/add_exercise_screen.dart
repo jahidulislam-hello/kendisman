@@ -1,30 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
+import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/filter_sheet.dart';
-
-/// Thumbnail for the add-exercise grid. Prefers the 180p clip, then any
-/// stored demonstration GIF.
-String? exercisePreviewUrl(Map<String, dynamic> exercise) {
-  for (final key in ['image_url', 'gif_url_180', 'gif_url', 'gif_url_360']) {
-    final value = exercise[key];
-    if (value is String && value.isNotEmpty) return value;
-  }
-  return null;
-}
-
-String? muscleTabGif(List<Map<String, dynamic>> rows, String muscle) {
-  for (final row in rows) {
-    final group = row['muscle_group'] as String? ?? '';
-    if (muscle != 'All' && group.toLowerCase() != muscle.toLowerCase()) continue;
-    final url = exercisePreviewUrl(row);
-    if (url != null) return url;
-  }
-  return null;
-}
 
 class WorkoutAddExerciseScreen extends ConsumerStatefulWidget {
   const WorkoutAddExerciseScreen({super.key});
@@ -153,9 +133,7 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                   final selected = muscle == m;
                   return GestureDetector(
                     onTap: () => setState(() => muscle = m),
-                    child: SizedBox(
-                      width: 64,
-                      child: Column(
+                    child: Column(
                       children: [
                         Container(
                           width: 56,
@@ -165,15 +143,14 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                             color: selected ? colors.accent.withValues(alpha: 0.15) : colors.surface,
                             border: Border.all(color: selected ? colors.accent : colors.border, width: selected ? 2 : 1),
                           ),
-                          clipBehavior: Clip.antiAlias,
-                          child: _MuscleTabGif(url: muscleTabGif(rows, m)),
+                          child: Icon(
+                            WorkoutCatalog.muscleIcon(m),
+                            color: selected ? colors.accent : colors.textSecondary,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           m,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: selected ? colors.accent : colors.textSecondary,
                             fontSize: 11,
@@ -181,7 +158,6 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                           ),
                         ),
                       ],
-                    ),
                     ),
                   );
                 },
@@ -241,22 +217,24 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: ColoredBox(
-                              color: colors.background,
-                              child: _ExercisePreview(url: exercisePreviewUrl(e)),
+                          child: Center(
+                            child: Container(
+                              width: 72,
+
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: colors.background,
+
+
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(WorkoutCatalog.muscleIcon(group), color: colors.accent, size: 34),
                             ),
                           ),
                         ),
                         Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
-                        const SizedBox(height: 4),
-                        Text(
-                          group.isEmpty ? 'General' : group,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
+                        const SizedBox(height: 2),
+                        Text(group, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
@@ -282,46 +260,6 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MuscleTabGif extends StatelessWidget {
-  const _MuscleTabGif({required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    final previewUrl = url;
-    if (previewUrl == null) return const SizedBox.expand();
-    return CachedNetworkImage(
-      imageUrl: previewUrl,
-      width: 56,
-      height: 56,
-      fit: BoxFit.cover,
-      placeholder: (_, __) => const SizedBox.expand(),
-      errorWidget: (_, __, ___) => const SizedBox.expand(),
-    );
-  }
-}
-
-class _ExercisePreview extends StatelessWidget {
-  const _ExercisePreview({required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    final previewUrl = url;
-    if (previewUrl == null) return const SizedBox.expand();
-    return CachedNetworkImage(
-      imageUrl: previewUrl,
-      fit: BoxFit.contain,
-      width: double.infinity,
-      height: double.infinity,
-      placeholder: (_, __) => const SizedBox.expand(),
-      errorWidget: (_, __, ___) => const SizedBox.expand(),
     );
   }
 }
