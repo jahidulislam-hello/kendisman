@@ -14,6 +14,8 @@ migrate_working_directory/
 
 # Flutter/Dart
 .dart_tool/
+# Local junction so a running debug session can resolve the old assets/animations path
+assets/animations/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages

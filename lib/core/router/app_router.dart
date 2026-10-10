@@ -8,6 +8,7 @@ import 'package:fitzella/core/providers/auth_provider.dart';
 import 'package:fitzella/core/services/profile_prefs_service.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/auth/auth_screens.dart';
+import 'package:fitzella/features/auth/login_choices_screen.dart';
 import 'package:fitzella/features/onboarding/onboarding_screens.dart';
 import 'package:fitzella/features/splash/splash_screen.dart';
 import 'package:fitzella/features/splash/welcome_screen.dart';
@@ -132,6 +133,11 @@ class AppRouter {
             return null;
           },
           routes: [
+            GoRoute(
+              path: 'continue',
+              name: 'auth-continue',
+              builder: (context, state) => const LoginChoicesScreen(),
+            ),
             GoRoute(
               path: 'login',
               name: 'login',

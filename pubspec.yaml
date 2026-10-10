@@ -87,7 +87,7 @@ flutter:
     - assets/images/
     - assets/images/welcome_01.png
     - assets/icons/
-    - assets/animations/
+    - assets/animation/
   fonts:
     - family: Inter
       fonts:
