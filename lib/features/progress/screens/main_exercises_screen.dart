@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
+import 'package:fitzella/features/workout/widgets/exercise_gif.dart';
 
 class MainExercisesScreen extends ConsumerStatefulWidget {
   const MainExercisesScreen({super.key});
@@ -85,14 +86,10 @@ class _MainExercisesScreenState extends ConsumerState<MainExercisesScreen> {
                             style: TextStyle(color: colors.accent, fontSize: 18, fontWeight: FontWeight.w800),
                           ),
                         ),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: colors.background,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Icons.fitness_center, color: colors.accent, size: 18),
+                        ExerciseGif(
+                          name: item['name'] as String? ?? '',
+                          size: 40,
+                          borderRadius: 10,
                         ),
                         const SizedBox(width: 12),
                         Expanded(

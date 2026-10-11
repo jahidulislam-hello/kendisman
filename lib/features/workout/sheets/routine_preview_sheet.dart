@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
+import 'package:fitzella/features/workout/widgets/exercise_gif.dart';
 
 Future<void> showRoutinePreviewSheet(BuildContext context, RoutineDay day) {
   return showModalBottomSheet(
@@ -80,11 +81,10 @@ class _RoutinePreviewSheet extends ConsumerWidget {
                     final e = exercises[i];
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(color: colors.background, borderRadius: BorderRadius.circular(10)),
-                        child: Icon(Icons.fitness_center, color: colors.accent, size: 20),
+                      leading: ExerciseGif(
+                        name: e,
+                        size: 44,
+                        borderRadius: 10,
                       ),
                       title: Text(e, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
                       subtitle: Text('Routine exercise', style: TextStyle(color: colors.textSecondary, fontSize: 12)),

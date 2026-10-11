@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
+import 'package:fitzella/features/workout/widgets/exercise_gif.dart';
 
 class PersonalRecordItem {
   const PersonalRecordItem({
@@ -176,7 +177,13 @@ class _PersonalRecordsScreenState extends ConsumerState<PersonalRecordsScreen> {
                                   ),
                                 ),
                                 const Spacer(),
-                                Center(child: Icon(Icons.fitness_center, color: colors.accent, size: 28)),
+                                Center(
+                                  child: ExerciseGif(
+                                    name: item.name,
+                                    size: 72,
+                                    borderRadius: 12,
+                                  ),
+                                ),
                                 const Spacer(),
                                 Text(
                                   item.name,
@@ -213,7 +220,13 @@ class _PersonalRecordsScreenState extends ConsumerState<PersonalRecordsScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: colors.success, width: 1.5),
                                   ),
-                                  child: Icon(Icons.fitness_center, color: colors.accent, size: 16),
+                                  child: Center(
+                                    child: ExerciseGif(
+                                      name: item.name,
+                                      size: 28,
+                                      borderRadius: 6,
+                                    ),
+                                  ),
                                 ),
                                 if (!isLast)
                                   Expanded(

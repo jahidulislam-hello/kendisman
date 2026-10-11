@@ -9,6 +9,7 @@ import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/exercise_options_sheet.dart';
 import 'package:fitzella/features/workout/sheets/finish_workout_sheet.dart';
+import 'package:fitzella/features/workout/widgets/exercise_gif.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
   const ActiveWorkoutScreen({super.key});
@@ -209,11 +210,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                               children: [
                                 Text('${ei + 1}', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w700)),
                                 const SizedBox(width: 8),
-                                Container(
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(color: colors.background, borderRadius: BorderRadius.circular(8)),
-                                  child: Icon(Icons.fitness_center, color: colors.accent, size: 18),
+                                ExerciseGif(
+                                  name: ex.name,
+                                  size: 34,
+                                  borderRadius: 8,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(

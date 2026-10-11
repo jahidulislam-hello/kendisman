@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fitzella/core/services/fitness_data_service.dart';
 import 'package:fitzella/features/progress/widgets/progress_widgets.dart';
+import 'package:fitzella/features/workout/widgets/exercise_gif.dart';
 
 class ProgressExerciseDetailScreen extends ConsumerStatefulWidget {
   final String exerciseId;
@@ -129,9 +130,23 @@ class _ProgressExerciseDetailScreenState
   Widget _about(dynamic colors, Map<String, dynamic> exercise) {
     final muscle = exercise['muscle_group'] as String? ?? '—';
     final equipment = exercise['equipment_type'] as String? ?? '—';
+    final name = exercise['name'] as String? ?? '';
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: ExerciseGif(
+              name: name,
+              gifUrl: exerciseDemoUrl(exercise),
+              expand: true,
+              borderRadius: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         ProgressSurfaceCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fitzella/core/theme/theme_provider.dart';
 import 'package:fitzella/core/services/fitness_data_service.dart';
-import 'package:fitzella/features/workout/data/workout_data.dart';
 import 'package:fitzella/features/workout/sheets/filter_sheet.dart';
+import 'package:fitzella/features/workout/widgets/exercise_gif.dart';
 
 class WorkoutAddExerciseScreen extends ConsumerStatefulWidget {
   const WorkoutAddExerciseScreen({super.key});
@@ -17,6 +17,16 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
   String query = '';
   String muscle = 'All';
   final Set<String> equipment = {};
+
+  Map<String, dynamic>? _sampleForMuscle(List<Map<String, dynamic>> rows, String muscle) {
+    for (final row in rows) {
+      final group = row['muscle_group'] as String? ?? '';
+      if (muscle != 'All' && group.toLowerCase() != muscle.toLowerCase()) continue;
+      if (exerciseThumbnailUrl(row) == null) continue;
+      return row;
+    }
+    return null;
+  }
 
   List<Map<String, dynamic>> filtered(List<Map<String, dynamic>> rows) {
     return rows.where((e) {
@@ -131,6 +141,8 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                 itemBuilder: (context, i) {
                   final m = muscles[i];
                   final selected = muscle == m;
+                  final sample = _sampleForMuscle(rows, m);
+                  final sampleName = sample?['name'] as String? ?? m;
                   return GestureDetector(
                     onTap: () => setState(() => muscle = m),
                     child: Column(
@@ -138,14 +150,17 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                         Container(
                           width: 56,
                           height: 56,
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: selected ? colors.accent.withValues(alpha: 0.15) : colors.surface,
                             border: Border.all(color: selected ? colors.accent : colors.border, width: selected ? 2 : 1),
                           ),
-                          child: Icon(
-                            WorkoutCatalog.muscleIcon(m),
-                            color: selected ? colors.accent : colors.textSecondary,
+                          child: ExerciseGif(
+                            name: sampleName,
+                            gifUrl: sample == null ? null : exerciseThumbnailUrl(sample),
+                            size: 46,
+                            borderRadius: 23,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -217,19 +232,11 @@ class _WorkoutAddExerciseScreenState extends ConsumerState<WorkoutAddExerciseScr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Center(
-                            child: Container(
-                              width: 72,
-
-                              height: 72,
-                              decoration: BoxDecoration(
-                                color: colors.background,
-
-
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Icon(WorkoutCatalog.muscleIcon(group), color: colors.accent, size: 34),
-                            ),
+                          child: ExerciseGif(
+                            name: name,
+                            gifUrl: exerciseThumbnailUrl(e),
+                            expand: true,
+                            borderRadius: 12,
                           ),
                         ),
                         Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
