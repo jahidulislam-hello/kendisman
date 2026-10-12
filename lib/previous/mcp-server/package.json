@@ -4,9 +4,9 @@
   "private": true,
   "description": "Read-only OpenAI Apps SDK MCP server exposing Fitzella workout data to ChatGPT.",
   "scripts": {
-    "dev": "next dev -p 3005",
-    "build": "next build",
-    "start": "next start -p 3005",
+    "dev": "node init && next dev -p 3005",
+    "build": "node init && next build",
+    "start": "node init && next start -p 3005",
     "typecheck": "tsc --noEmit",
     "mint-token": "tsx scripts/mint-token.ts"
   },
