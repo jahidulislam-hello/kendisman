@@ -199,31 +199,7 @@ class _UpNextCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Column(
-                children: [
-                  // Container(
-                  //   width: 36,
-                  //   height: 36,
-                  //   decoration: BoxDecoration(
-                  //     color: colors.accent.withValues(alpha: 0.12),
-                  //     borderRadius: BorderRadius.circular(10),
-                  //     border: Border.all(color: colors.accent.withValues(alpha: 0.45)),
-                  //   ),
-                  //   child: Icon(Icons.tag, color: colors.accent, size: 18),
-                  // ),
-                  const SizedBox(height: 8),
-                  ...[28.0, 18.0, 22.0].map(
-                    (w) => Container(
-                      margin: const EdgeInsets.only(bottom: 3),
-                      width: w,
-                      height: 3,
-                      decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('$exerciseCount exercises', style: TextStyle(color: colors.textMuted, fontSize: 11)),
-                ],
-              ),
+
             ],
           ),
           const SizedBox(height: 14),
